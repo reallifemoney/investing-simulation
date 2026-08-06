@@ -37,6 +37,9 @@ body {
 .app-logo {
   height: 70px;
   object-fit: contain;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%); /* Centers logo relative to .app-header */
 }
 
 @media (max-width: 600px) {
