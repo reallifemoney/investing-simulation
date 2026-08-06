@@ -7,6 +7,7 @@ let isAdmin = false;
 let currentQuestionIndex = 0;
 let pendingOptionIndex = null;
 let quizScore = 1000;
+let answeredQuestions = {}; // track answered questions locally: { [index]: { chosen, isCorrect } }
 
 // Game State listener
 let gameRef = null;
@@ -245,11 +246,11 @@ function performResultsCountdown(year, myData) {
       showScreen('screen-results');
       // render results first with elements present but hidden
       renderResultsScreen(year, myData);
-      // fade in market grid, then personal results
+      // fade in market grid slowly, then personal results after a pause
       const mGrid = document.getElementById('market-performance-grid');
       const personal = document.querySelector('.personal-results-box');
-      if (mGrid) { mGrid.classList.add('fade-in'); }
-      setTimeout(() => { if (personal) personal.classList.add('fade-in'); }, 900);
+      if (mGrid) { mGrid.classList.remove('fade-in'); mGrid.classList.add('fade-in-slow'); }
+      setTimeout(() => { if (personal) { personal.classList.remove('fade-in'); personal.classList.add('fade-in-slow'); } }, 2000);
     }
   }, 900);
 }
@@ -275,14 +276,34 @@ function renderQuestion() {
 
   const container = document.getElementById('quiz-options-container');
   container.innerHTML = '';
+  const answered = answeredQuestions[currentQuestionIndex];
   q.options.forEach((opt, idx) => {
     const card = document.createElement('div');
     card.className = 'option-card';
     card.setAttribute('data-option-idx', idx);
     card.innerText = opt;
-    card.onclick = () => openConfirmModal(idx);
+    if (answered) {
+      // already answered: disable clicks and show result
+      card.onclick = null;
+      if (idx === answered.chosen) {
+        card.classList.add(answered.isCorrect ? 'correct' : 'wrong');
+      }
+      if (idx === q.answer) card.classList.add('correct');
+    } else {
+      card.onclick = () => openConfirmModal(idx);
+    }
     container.appendChild(card);
   });
+
+  // if already answered show feedback box
+  if (answered) {
+    const fbBox = document.getElementById('quiz-feedback-box');
+    fbBox.classList.remove('hidden');
+    document.getElementById('quiz-feedback-text').innerHTML = answered.isCorrect
+      ? `<strong style="color:var(--green-primary)">Correct! +£100 added to your funds.</strong>`
+      : `<strong style="color:var(--red-accent)">Incorrect. No funds added for this question.</strong>`;
+    document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString()}`;
+  }
 }
 
 function openConfirmModal(optIdx) {
@@ -315,6 +336,9 @@ function confirmAnswer() {
     if (chosenCard) chosenCard.classList.add('wrong');
     if (correctCard) correctCard.classList.add('correct');
   }
+
+  // mark question answered locally to prevent multiple attempts
+  answeredQuestions[currentQuestionIndex] = { chosen: pendingOptionIndex, isCorrect };
 
   db.ref(`games/${currentGameCode}/players/${playerId}`).update({
     quizScore: quizScore,
@@ -436,7 +460,7 @@ function renderResultsScreen(year, myData) {
       tr.innerHTML = `
         <td>${a.name}</td>
         <td>£${a.val.toLocaleString()}</td>
-        <td>${(a.ret * 100).toFixed(1)}%</td>
+        <td style="color:${a.ret >= 0 ? 'var(--green-primary)' : 'var(--red-accent)'}">${(a.ret * 100).toFixed(1)}%</td>
         <td style="color:${gain >= 0 ? 'var(--green-primary)' : 'var(--red-accent)'}">£${Math.round(gain).toLocaleString()}</td>
         <td>£${Math.round(end).toLocaleString()}</td>
       `;

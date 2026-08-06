@@ -235,6 +235,11 @@ h1 {
 .large-join { padding: 18px; font-size:1.1rem; border-radius:14px; }
 .admin-link-box { display:flex; align-items:center; justify-content:center; }
 
+.admin-link-below { margin-top: 12px; text-align: center; }
+.admin-link-below .btn-link { font-size: 0.95rem; }
+
+.fade-in-slow { animation: fadeInUp 1400ms ease forwards; opacity:0; }
+
 @media (max-width: 480px) {
   .asset-desc { display: none; }
   .alloc-input { max-width: 100px; }
