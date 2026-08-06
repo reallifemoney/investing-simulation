@@ -37,13 +37,13 @@ body {
 
 .app-logo {
   grid-column: 2; /* Forces logo into the center column */
-  height: 70px;
+  height: 80px;
   object-fit: contain;
   justify-self: center;
 }
 
 @media (max-width: 600px) {
-  .app-logo { height: 54px; }
+  .app-logo { height: 65px; }
 }
 
 /* Countdown overlay */
