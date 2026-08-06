@@ -116,14 +116,26 @@ function listenToGameAsAdmin() {
 function updateHeaderForState(state) {
   const titleEl = document.querySelector('.app-header h1');
   const pill = document.getElementById('balance-pill');
-  if (!titleEl) return;
+  const homeBanner = document.getElementById('home-banner');
+  const gameLogo = document.getElementById('game-logo');
+
   const isLiveGame = !!(currentGameCode && playerId);
-  if (state && state !== 'LOBBY' && state !== 'HOME') {
-    titleEl.classList.add('hidden');
-    if (pill && isLiveGame) pill.classList.remove('hidden');
-  } else {
-    titleEl.classList.remove('hidden');
+  const isHomeOrLobby = !state || state === 'LOBBY' || state === 'HOME';
+
+  if (isHomeOrLobby) {
+    // Homepage / Lobby State: Show home banner & h1, hide game logo
+    if (homeBanner) homeBanner.classList.remove('hidden');
+    if (gameLogo) gameLogo.classList.add('hidden');
+    if (titleEl) titleEl.classList.remove('hidden');
+
     if (pill) pill.classList.toggle('hidden', !isLiveGame);
+  } else {
+    // Active Game State: Hide home banner & h1, show compact game logo
+    if (homeBanner) homeBanner.classList.add('hidden');
+    if (gameLogo) gameLogo.classList.remove('hidden');
+    if (titleEl) titleEl.classList.add('hidden');
+
+    if (pill && isLiveGame) pill.classList.remove('hidden');
   }
 }
 
