@@ -17,14 +17,19 @@
 <!-- Top Fixed Header -->
 
 <header class="app-header">
-<img src="/logo.png" alt="Logo" class="app-logo" onerror="this.style.display='none'">
-<div class="header-actions">
-<div id="balance-pill" class="balance-pill hidden">
-<span class="balance-pill-icon">💷</span>
-<span id="balance-pill-value">£0</span>
-</div>
-<button id="global-leaderboard-btn" class="btn btn-purple btn-sm hidden" onclick="toggleLeaderboardModal(true)">🏆 Leaderboard</button>
-</div>
+  <!-- Left Side: Balance Pill (Game Mode) -->
+  <div id="balance-pill" class="balance-pill hidden">
+    <span class="balance-pill-icon">💷</span>
+    <span id="balance-pill-value">£0</span>
+  </div>
+
+  <!-- Center: Logo (Home Mode) -->
+  <img src="/logo.png" alt="Logo" class="app-logo" onerror="this.style.display='none'">
+
+  <!-- Right Side: Leaderboard Button -->
+  <div class="header-actions">
+    <button id="global-leaderboard-btn" class="btn btn-purple btn-sm hidden" onclick="toggleLeaderboardModal(true)">🏆 Leaderboard</button>
+  </div>
 </header>
 
   <div class="container">

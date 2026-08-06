@@ -114,18 +114,25 @@ function listenToGameAsAdmin() {
 }
 
 function updateHeaderForState(state) {
-const titleEl = document.querySelector('.app-header h1');
-const pill = document.getElementById('balance-pill');
-if (!titleEl) return;
-const isLiveGame = !!(currentGameCode && playerId);
-if (state && state !== 'LOBBY' && state !== 'HOME') {
-titleEl.classList.add('hidden');
-if (pill && isLiveGame) pill.classList.remove('hidden');
-} else {
-titleEl.classList.remove('hidden');
-if (pill) pill.classList.toggle('hidden', !isLiveGame);
-}
+  const headerEl = document.querySelector('.app-header');
+  const logoEl = document.querySelector('.app-logo');
+  const pill = document.getElementById('balance-pill');
+  const leaderboardBtn = document.getElementById('global-leaderboard-btn');
+  
+  const isLiveGame = !!(currentGameCode && playerId);
+  const isHomeOrLobby = !state || state === 'LOBBY' || state === 'HOME';
 
+  if (isHomeOrLobby) {
+    // Homepage / Lobby State: Show centered logo, hide pill
+    if (headerEl) headerEl.classList.remove('game-started');
+    if (pill) pill.classList.add('hidden');
+    if (leaderboardBtn) leaderboardBtn.classList.add('hidden');
+  } else {
+    // Active Game State: Hide logo, show left balance pill & right leaderboard button
+    if (headerEl) headerEl.classList.add('game-started');
+    if (pill && isLiveGame) pill.classList.remove('hidden');
+    if (leaderboardBtn) leaderboardBtn.classList.remove('hidden');
+  }
 }
 
 function adminChangeState(newState) {
