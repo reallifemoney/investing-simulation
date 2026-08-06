@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Investing Simulation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- Firebase Compatibility Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+</head>
+<body>
+
+  <!-- Top Fixed Header -->
+  <header class="app-header">
+    <img src="/logo.png" alt="Logo" class="app-logo" onerror="this.style.display='none'">
+    <h1>Investing Simulation</h1>
+    <button id="global-leaderboard-btn" class="btn btn-purple btn-sm hidden" onclick="toggleLeaderboardModal(true)">🏆 Leaderboard</button>
+  </header>
+
+  <div class="container">
+
+    <!-- SCREEN 1: HOME / ROLE SELECT -->
+    <div id="screen-home" class="card text-center">
+      <h2>Welcome to the Simulation</h2>
+      <p>Test your financial knowledge and build an investment portfolio over 6 market years.</p>
+      
+      <div class="home-actions">
+        <div class="action-box">
+          <h3>Join as Player</h3>
+          <input type="text" id="player-name-input" placeholder="Your Name" class="input-field">
+          <input type="text" id="join-code-input" placeholder="Game Code (e.g. ABCD)" class="input-field uppercase">
+          <button class="btn btn-green btn-full" onclick="joinGame()">Join Game</button>
+        </div>
+        <div class="divider">OR</div>
+        <div class="action-box">
+          <h3>Host as Admin</h3>
+          <p>Create a game room to lead a workshop or class session.</p>
+          <button class="btn btn-purple btn-full" onclick="createGame()">Create Game Room</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 2: ADMIN DASHBOARD -->
+    <div id="screen-admin" class="card hidden">
+      <div class="admin-top">
+        <div>
+          <h2>Admin Control Panel</h2>
+          <p>Game Code: <span id="admin-game-code" class="badge-code">---</span></p>
+        </div>
+        <div class="admin-controls" id="admin-actions">
+          <!-- Dynamic action buttons injected here -->
+        </div>
+      </div>
+
+      <div class="admin-status-bar" id="admin-status-text">
+        Waiting for players to join...
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Player Name</th>
+              <th>Quiz Progress</th>
+              <th>Quiz Bonus</th>
+              <th>Current Balance</th>
+              <th>Allocations Status</th>
+            </tr>
+          </thead>
+          <tbody id="admin-players-list">
+            <tr><td colspan="5" class="text-center">No players joined yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SCREEN 3: PLAYER LOBBY -->
+    <div id="screen-lobby" class="card text-center hidden">
+      <h2>You're In!</h2>
+      <p>Game Code: <strong id="lobby-code-display">---</strong></p>
+      <div class="pulse-loader"></div>
+      <p>Waiting for the admin to start the game...</p>
+    </div>
+
+    <!-- SCREEN 4: QUIZ PHASE -->
+    <div id="screen-quiz" class="card hidden">
+      <div class="quiz-header">
+        <span id="quiz-question-num">Question 1 of 8</span>
+        <span class="quiz-score-badge">Current Cash: <strong id="quiz-cash-display">£1,000</strong></span>
+      </div>
+
+      <div class="question-container">
+        <h2 id="quiz-question-text">Question loading...</h2>
+        <div class="options-grid" id="quiz-options-container"></div>
+      </div>
+
+      <div id="quiz-feedback-box" class="feedback-box hidden">
+        <div id="quiz-feedback-text"></div>
+        <button id="quiz-next-btn" class="btn btn-purple mt-15" onclick="nextQuestion()">Next Question →</button>
+      </div>
+    </div>
+
+    <!-- SCREEN 5: INVESTMENT ALLOCATION PHASE -->
+    <div id="screen-allocate" class="card hidden">
+      <h2>Year <span class="current-year-num">1</span> Investment Allocation</h2>
+      <p>Distribute your total available funds (<strong>£<span class="player-total-cash">1000</span></strong>) across the 4 asset classes.</p>
+
+      <div class="allocation-grid">
+        <div class="asset-card">
+          <h4>💵 Cash</h4>
+          <p class="asset-desc">Low risk, low return stability.</p>
+          <input type="number" id="alloc-cash" class="input-field alloc-input" min="0" value="0" oninput="updateAllocationTotals()">
+          <span class="alloc-pct" id="pct-cash">0%</span>
+        </div>
+        <div class="asset-card">
+          <h4>🏛️ Bonds</h4>
+          <p class="asset-desc">Fixed income debt securities.</p>
+          <input type="number" id="alloc-bonds" class="input-field alloc-input" min="0" value="0" oninput="updateAllocationTotals()">
+          <span class="alloc-pct" id="pct-bonds">0%</span>
+        </div>
+        <div class="asset-card">
+          <h4>📉 Commodities</h4>
+          <p class="asset-desc">Raw materials (gold, oil, agriculture).</p>
+          <input type="number" id="alloc-commodities" class="input-field alloc-input" min="0" value="0" oninput="updateAllocationTotals()">
+          <span class="alloc-pct" id="pct-commodities">0%</span>
+        </div>
+        <div class="asset-card">
+          <h4>📈 Equities (Stocks)</h4>
+          <p class="asset-desc">Company stock ownership shares.</p>
+          <input type="number" id="alloc-equities" class="input-field alloc-input" min="0" value="0" oninput="updateAllocationTotals()">
+          <span class="alloc-pct" id="pct-equities">0%</span>
+        </div>
+      </div>
+
+      <div class="alloc-summary">
+        <div>Total Allocated: <strong>£<span id="total-allocated-display">0</span></strong> / £<span class="player-total-cash">1000</span></div>
+        <div>Remaining: <strong id="remaining-allocated-display">£1000</strong></div>
+      </div>
+
+      <button id="submit-alloc-btn" class="btn btn-green btn-full mt-15" onclick="submitAllocation()">Submit Allocation</button>
+      <div id="alloc-waiting-msg" class="text-center mt-15 hidden alert-info">
+        ✅ Allocation submitted! Waiting for admin to process Year <span class="current-year-num">1</span> results...
+      </div>
+    </div>
+
+    <!-- SCREEN 6: YEAR RESULTS PHASE -->
+    <div id="screen-results" class="card hidden">
+      <h2>Year <span class="current-year-num">1</span> Results</h2>
+
+      <div class="market-overview-box">
+        <h3>📊 Annual Market Performance</h3>
+        <div class="market-grid" id="market-performance-grid"></div>
+      </div>
+
+      <div class="personal-results-box">
+        <h3>💰 Your Portfolio Performance</h3>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Asset</th>
+              <th>Invested</th>
+              <th>Return %</th>
+              <th>Gain / Loss</th>
+              <th>End Value</th>
+            </tr>
+          </thead>
+          <tbody id="player-results-table"></tbody>
+        </table>
+        <div class="results-total-row">
+          <span>New Total Portfolio Value:</span>
+          <strong id="new-portfolio-total">£0</strong>
+        </div>
+      </div>
+
+      <div class="text-center mt-15">
+        <p>Waiting for host to move to next round...</p>
+      </div>
+    </div>
+
+    <!-- SCREEN 7: FINAL GAME OVER -->
+    <div id="screen-final" class="card text-center hidden">
+      <h2>🎉 Simulation Complete!</h2>
+      <p>Here are the final standings after 6 market investment years:</p>
+      <div id="final-leaderboard-container"></div>
+    </div>
+
+  </div>
+
+  <!-- CONFIRMATION MODAL FOR QUIZ -->
+  <div id="confirm-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Confirm Answer</h3>
+      <p>Are you sure you want to select: <br><strong id="confirm-option-text">---</strong>?</p>
+      <div class="modal-buttons">
+        <button class="btn btn-gray" onclick="closeConfirmModal()">Cancel</button>
+        <button class="btn btn-purple" onclick="confirmAnswer()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD POPUP MODAL -->
+  <div id="leaderboard-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>🏆 Current Leaderboard</h3>
+        <button class="close-btn" onclick="toggleLeaderboardModal(false)">&times;</button>
+      </div>
+      <div id="leaderboard-modal-body">
+        <p class="text-center">Loading leaderboard...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="firebase-config.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
