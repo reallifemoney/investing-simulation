@@ -81,6 +81,23 @@
       <p>Game Code: <strong id="lobby-code-display">---</strong></p>
       <div class="pulse-loader"></div>
       <p id="lobby-waiting-text">Waiting for the admin to start the game...</p>
+      <div class="game-journey-card">
+        <h3>How the game works</h3>
+        <div class="journey-grid">
+          <div class="journey-step">
+            <h4>Start</h4>
+            <p>You begin with £1,000.</p>
+          </div>
+          <div class="journey-step">
+            <h4>Quiz</h4>
+            <p>Answer 8 questions and earn £100 for each correct answer.</p>
+          </div>
+          <div class="journey-step">
+            <h4>Invest</h4>
+            <p>Then manage 6 years of investing and see who wins.</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- SCREEN 4: QUIZ PHASE -->
@@ -107,57 +124,49 @@
       <p>Distribute your total available funds (<strong>£<span class="player-total-cash">1000</span></strong>) across the 4 asset classes.</p>
 
       <div class="allocation-grid">
-          <div class="asset-card">
-            <h4>💵 Cash <button class="btn btn-sm" style="margin-left:8px;" onclick="toggleAssetSummary(true,'cash')">i</button></h4>
-            <div class="asset-row">
-              <input type="number" id="alloc-cash" class="input-field alloc-input" min="0" value="0" oninput="updateAllocationTotals()">
-              <div class="alloc-quickfills">
-                <button class="btn" onclick="setAllocationPercent('alloc-cash',100)">100%</button>
-                <button class="btn" onclick="setAllocationPercent('alloc-cash',75)">75%</button>
-                <button class="btn" onclick="setAllocationPercent('alloc-cash',50)">50%</button>
-                <button class="btn" onclick="setAllocationPercent('alloc-cash',25)">25%</button>
-                <button class="btn" onclick="setAllocationPercent('alloc-cash',0)">0%</button>
-              </div>
-            </div>
-          </div>
         <div class="asset-card">
-          <h4>🏛️ Bonds <button class="btn btn-sm" style="margin-left:8px;" onclick="toggleAssetSummary(true,'bonds')">i</button></h4>
-          <div class="asset-row">
-            <input type="number" id="alloc-bonds" class="input-field alloc-input" min="0" value="0" oninput="updateAllocationTotals()">
-            <div class="alloc-quickfills">
-              <button class="btn" onclick="setAllocationPercent('alloc-bonds',100)">100%</button>
-              <button class="btn" onclick="setAllocationPercent('alloc-bonds',75)">75%</button>
-              <button class="btn" onclick="setAllocationPercent('alloc-bonds',50)">50%</button>
-              <button class="btn" onclick="setAllocationPercent('alloc-bonds',25)">25%</button>
-              <button class="btn" onclick="setAllocationPercent('alloc-bonds',0)">0%</button>
-            </div>
+          <div class="asset-card-head">
+            <h4>💵 Cash</h4>
+            <button class="btn btn-sm" onclick="toggleAssetSummary(true,'cash')">i</button>
           </div>
+          <div class="asset-row">
+            <input type="hidden" id="alloc-cash" value="0">
+            <div class="allocation-pill-group" id="alloc-options-cash"></div>
+          </div>
+          <div class="asset-amount-display" id="alloc-amount-cash">£0</div>
         </div>
         <div class="asset-card">
-          <h4>📉 Commodities <button class="btn btn-sm" style="margin-left:8px;" onclick="toggleAssetSummary(true,'commodities')">i</button></h4>
-          <div class="asset-row">
-            <input type="number" id="alloc-commodities" class="input-field alloc-input" min="0" value="0" oninput="updateAllocationTotals()">
-            <div class="alloc-quickfills">
-              <button class="btn" onclick="setAllocationPercent('alloc-commodities',100)">100%</button>
-              <button class="btn" onclick="setAllocationPercent('alloc-commodities',75)">75%</button>
-              <button class="btn" onclick="setAllocationPercent('alloc-commodities',50)">50%</button>
-              <button class="btn" onclick="setAllocationPercent('alloc-commodities',25)">25%</button>
-              <button class="btn" onclick="setAllocationPercent('alloc-commodities',0)">0%</button>
-            </div>
+          <div class="asset-card-head">
+            <h4>🏛️ Bonds</h4>
+            <button class="btn btn-sm" onclick="toggleAssetSummary(true,'bonds')">i</button>
           </div>
+          <div class="asset-row">
+            <input type="hidden" id="alloc-bonds" value="0">
+            <div class="allocation-pill-group" id="alloc-options-bonds"></div>
+          </div>
+          <div class="asset-amount-display" id="alloc-amount-bonds">£0</div>
         </div>
         <div class="asset-card">
-          <h4>📈 Equities (Stocks) <button class="btn btn-sm" style="margin-left:8px;" onclick="toggleAssetSummary(true,'equities')">i</button></h4>
-          <div class="asset-row">
-            <input type="number" id="alloc-equities" class="input-field alloc-input" min="0" value="0" oninput="updateAllocationTotals()">
-            <div class="alloc-quickfills">
-              <button class="btn" onclick="setAllocationPercent('alloc-equities',100)">100%</button>
-              <button class="btn" onclick="setAllocationPercent('alloc-equities',75)">75%</button>
-              <button class="btn" onclick="setAllocationPercent('alloc-equities',50)">50%</button>
-              <button class="btn" onclick="setAllocationPercent('alloc-equities',25)">25%</button>
-              <button class="btn" onclick="setAllocationPercent('alloc-equities',0)">0%</button>
-            </div>
+          <div class="asset-card-head">
+            <h4>📉 Commodities</h4>
+            <button class="btn btn-sm" onclick="toggleAssetSummary(true,'commodities')">i</button>
           </div>
+          <div class="asset-row">
+            <input type="hidden" id="alloc-commodities" value="0">
+            <div class="allocation-pill-group" id="alloc-options-commodities"></div>
+          </div>
+          <div class="asset-amount-display" id="alloc-amount-commodities">£0</div>
+        </div>
+        <div class="asset-card">
+          <div class="asset-card-head">
+            <h4>📈 Equities</h4>
+            <button class="btn btn-sm" onclick="toggleAssetSummary(true,'equities')">i</button>
+          </div>
+          <div class="asset-row">
+            <input type="hidden" id="alloc-equities" value="0">
+            <div class="allocation-pill-group" id="alloc-options-equities"></div>
+          </div>
+          <div class="asset-amount-display" id="alloc-amount-equities">£0</div>
         </div>
       </div>
 
@@ -275,6 +284,7 @@
 
   <script src="firebase-config.js"></script>
   <script src="data.js"></script>
+  <script src="allocation-utils.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

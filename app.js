@@ -382,30 +382,56 @@ function setupAllocationScreen(year, myData) {
     msg.classList.add('hidden');
   }
 
-  updateAllocationTotals();
+  renderAllocationOptions();
+  ['cash', 'bonds', 'commodities', 'equities'].forEach(asset => {
+    const el = document.getElementById(`alloc-${asset}`);
+    if (el) el.value = 0;
+  });
 
-  // clear inputs for new year
-  const inputs = document.querySelectorAll('.alloc-input');
-  inputs.forEach(i => i.value = 0);
+  updateAllocationTotals();
+}
+
+function renderAllocationOptions() {
+  const totalCash = parseInt(document.querySelectorAll('.player-total-cash')[0].innerText.replace(/,/g, '').replace(/[^0-9]/g, '')) || 1000;
+  const options = getAllocationPercentOptions();
+  const assetIds = ['cash', 'bonds', 'commodities', 'equities'];
+
+  assetIds.forEach(asset => {
+    const container = document.getElementById(`alloc-options-${asset}`);
+    const amountEl = document.getElementById(`alloc-amount-${asset}`);
+    if (!container || !amountEl) return;
+
+    const currentValue = parseInt(document.getElementById(`alloc-${asset}`)?.value || 0, 10);
+    container.innerHTML = '';
+    options.forEach(percent => {
+      const amount = getAllocationAmountFromPercent(percent, totalCash);
+      const btn = document.createElement('button');
+      btn.className = `allocation-pill ${currentValue === amount ? 'active' : ''}`;
+      btn.type = 'button';
+      btn.innerHTML = `<strong>${percent}%</strong><small>£${amount.toLocaleString()}</small>`;
+      btn.onclick = () => setAllocationPercent(`alloc-${asset}`, percent);
+      container.appendChild(btn);
+    });
+    amountEl.innerText = `£${currentValue.toLocaleString()}`;
+  });
 }
 
 function updateAllocationTotals() {
   const totalCash = parseInt(document.querySelectorAll('.player-total-cash')[0].innerText.replace(/,/g, '').replace(/[^0-9]/g, '')) || 1000;
-  const cash = parseInt(document.getElementById('alloc-cash').value) || 0;
-  const bonds = parseInt(document.getElementById('alloc-bonds').value) || 0;
-  const commodities = parseInt(document.getElementById('alloc-commodities').value) || 0;
-  const equities = parseInt(document.getElementById('alloc-equities').value) || 0;
-
-  const total = cash + bonds + commodities + equities;
+  const values = ['cash', 'bonds', 'commodities', 'equities'].map(asset => parseInt(document.getElementById(`alloc-${asset}`).value || 0, 10));
+  const total = values.reduce((sum, val) => sum + val, 0);
   const remaining = totalCash - total;
-
-  document.getElementById('pct-cash').innerText = totalCash ? `${Math.round((cash / totalCash) * 100)}%` : '0%';
-  document.getElementById('pct-bonds').innerText = totalCash ? `${Math.round((bonds / totalCash) * 100)}%` : '0%';
-  document.getElementById('pct-commodities').innerText = totalCash ? `${Math.round((commodities / totalCash) * 100)}%` : '0%';
-  document.getElementById('pct-equities').innerText = totalCash ? `${Math.round((equities / totalCash) * 100)}%` : '0%';
 
   document.getElementById('total-allocated-display').innerText = total.toLocaleString();
   document.getElementById('remaining-allocated-display').innerText = `£${remaining.toLocaleString()}`;
+
+  values.forEach((value, idx) => {
+    const asset = ['cash', 'bonds', 'commodities', 'equities'][idx];
+    const amountEl = document.getElementById(`alloc-amount-${asset}`);
+    if (amountEl) amountEl.innerText = `£${value.toLocaleString()}`;
+  });
+
+  renderAllocationOptions();
 }
 
 function submitAllocation() {
@@ -441,6 +467,15 @@ function renderResultsScreen(year, myData) {
     mGrid.appendChild(div);
   });
 
+  const marketBox = document.querySelector('.market-overview-box');
+  const personalBox = document.querySelector('.personal-results-box');
+  [marketBox, personalBox].forEach(box => {
+    if (box) {
+      box.classList.remove('results-section-visible');
+      box.classList.add('results-section-hidden');
+    }
+  });
+
   if (myData && myData.history && myData.history['year' + year]) {
     const h = myData.history['year' + year];
     const tbody = document.getElementById('player-results-table');
@@ -469,6 +504,20 @@ function renderResultsScreen(year, myData) {
 
     document.getElementById('new-portfolio-total').innerText = `£${Math.round(h.newBalance).toLocaleString()}`;
   }
+
+  setTimeout(() => {
+    if (marketBox) {
+      marketBox.classList.remove('results-section-hidden');
+      marketBox.classList.add('results-section-visible');
+    }
+  }, 400);
+
+  setTimeout(() => {
+    if (personalBox) {
+      personalBox.classList.remove('results-section-hidden');
+      personalBox.classList.add('results-section-visible');
+    }
+  }, 1100);
 }
 
 // Quick-fill helpers for allocation inputs
@@ -509,7 +558,7 @@ function launchConfetti(){
 function renderFinalLeaderboard(playersObj) {
   const list = Object.values(playersObj || {}).sort((a, b) => (b.balance || 0) - (a.balance || 0));
   const container = document.getElementById('final-leaderboard-container');
-  let html = `<table class="data-table"><thead><tr><th>Rank</th><th>Player</th><th>Final Balance</th></tr></thead><tbody>`;
+  let html = `<table class="data-table"><thead><tr><th>Rank</th><th>Player</th><th>Balance</th></tr></thead><tbody>`;
 
   list.forEach((p, idx) => {
     html += `<tr>
