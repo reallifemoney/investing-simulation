@@ -198,6 +198,8 @@ function listenToGameAsPlayer() {
     } else if (data.state === 'FINAL') {
       showScreen('screen-final');
       renderFinalLeaderboard(data.players);
+      // confetti for winner if this client is the winner
+      maybeConfettiOnWin(data.players);
     }
   });
 }
@@ -206,12 +208,18 @@ function listenToGameAsPlayer() {
 function renderQuestion() {
   if (currentQuestionIndex >= QUIZ_QUESTIONS.length) {
     db.ref(`games/${currentGameCode}/players/${playerId}`).update({ quizFinished: true });
+    // show waiting page with specific message
+    const codeEl = document.getElementById('lobby-code-display');
+    if (codeEl) codeEl.innerText = currentGameCode || '---';
+    const waitEl = document.getElementById('lobby-waiting-text');
+    if (waitEl) waitEl.innerText = 'Coming up: Investing Simulation - waiting for host to begin simulation';
+    showScreen('screen-lobby');
     return;
   }
 
   const q = QUIZ_QUESTIONS[currentQuestionIndex];
   document.getElementById('quiz-question-num').innerText = `Question ${currentQuestionIndex + 1} of 8`;
-  document.getElementById('quiz-cash-display').innerText = `£${quizScore}`;
+  document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString()}`;
   document.getElementById('quiz-question-text').innerText = q.question;
   document.getElementById('quiz-feedback-box').classList.add('hidden');
 
@@ -220,6 +228,7 @@ function renderQuestion() {
   q.options.forEach((opt, idx) => {
     const card = document.createElement('div');
     card.className = 'option-card';
+    card.setAttribute('data-option-idx', idx);
     card.innerText = opt;
     card.onclick = () => openConfirmModal(idx);
     container.appendChild(card);
@@ -242,14 +251,19 @@ function confirmAnswer() {
   const isCorrect = pendingOptionIndex === q.answer;
   const cards = document.querySelectorAll('.option-card');
 
+  // remove click handlers to prevent double submits
   cards.forEach(card => card.onclick = null);
 
+  // find card elements by data attribute reliably
+  const chosenCard = document.querySelector(`.option-card[data-option-idx="${pendingOptionIndex}"]`);
+  const correctCard = document.querySelector(`.option-card[data-option-idx="${q.answer}"]`);
+
   if (isCorrect) {
-    cards[pendingOptionIndex].classList.add('correct');
+    if (chosenCard) chosenCard.classList.add('correct');
     quizScore += 100;
   } else {
-    cards[pendingOptionIndex].classList.add('wrong');
-    cards[q.answer].classList.add('correct');
+    if (chosenCard) chosenCard.classList.add('wrong');
+    if (correctCard) correctCard.classList.add('correct');
   }
 
   db.ref(`games/${currentGameCode}/players/${playerId}`).update({
@@ -263,6 +277,9 @@ function confirmAnswer() {
   document.getElementById('quiz-feedback-text').innerHTML = isCorrect
     ? `<strong style="color:var(--green-primary)">Correct! +£100 added to your funds.</strong>`
     : `<strong style="color:var(--red-accent)">Incorrect. No funds added for this question.</strong>`;
+
+  // Ensure currency formatting shows commas
+  document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString()}`;
 }
 
 function nextQuestion() {
@@ -292,10 +309,14 @@ function setupAllocationScreen(year, myData) {
   }
 
   updateAllocationTotals();
+
+  // clear inputs for new year
+  const inputs = document.querySelectorAll('.alloc-input');
+  inputs.forEach(i => i.value = 0);
 }
 
 function updateAllocationTotals() {
-  const totalCash = parseInt(document.querySelectorAll('.player-total-cash')[0].innerText.replace(/,/g, '')) || 1000;
+  const totalCash = parseInt(document.querySelectorAll('.player-total-cash')[0].innerText.replace(/,/g, '').replace(/[^0-9]/g, '')) || 1000;
   const cash = parseInt(document.getElementById('alloc-cash').value) || 0;
   const bonds = parseInt(document.getElementById('alloc-bonds').value) || 0;
   const commodities = parseInt(document.getElementById('alloc-commodities').value) || 0;
@@ -374,6 +395,41 @@ function renderResultsScreen(year, myData) {
   }
 }
 
+// Quick-fill helpers for allocation inputs
+function setAllocationPercent(assetId, percent) {
+  const totalCash = parseInt(document.querySelectorAll('.player-total-cash')[0].innerText.replace(/,/g, '').replace(/[^0-9]/g, '')) || 1000;
+  const value = Math.round((percent / 100) * totalCash);
+  const el = document.getElementById(assetId);
+  if (el) {
+    el.value = value;
+    updateAllocationTotals();
+  }
+}
+
+// After final leaderboard, if current player is top show confetti
+function maybeConfettiOnWin(playersObj) {
+  const list = Object.values(playersObj || {}).sort((a,b)=> (b.balance||0)-(a.balance||0));
+  if (!playerId) return;
+  if (list.length && list[0].name === playerName) {
+    // fire confetti
+    launchConfetti();
+  }
+}
+
+function launchConfetti(){
+  // simple confetti using canvas library-free approach (limited)
+  const cvs = document.createElement('canvas');
+  cvs.className = 'confetti-canvas';
+  document.body.appendChild(cvs);
+  cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+  const ctx = cvs.getContext('2d');
+  const pieces = [];
+  for(let i=0;i<120;i++){ pieces.push({x:Math.random()*cvs.width,y:Math.random()*-cvs.height/2,vy:2+Math.random()*6, size:4+Math.random()*8, color:`hsl(${Math.random()*360},80%,60%)`}); }
+  let frames = 0;
+  function frame(){ ctx.clearRect(0,0,cvs.width,cvs.height); pieces.forEach(p=>{ p.y+=p.vy; ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y,p.size,p.size); }); frames++; if(frames<180) requestAnimationFrame(frame); else cvs.remove(); }
+  frame();
+}
+
 function renderFinalLeaderboard(playersObj) {
   const list = Object.values(playersObj || {}).sort((a, b) => (b.balance || 0) - (a.balance || 0));
   const container = document.getElementById('final-leaderboard-container');
@@ -388,6 +444,28 @@ function renderFinalLeaderboard(playersObj) {
   });
   html += `</tbody></table>`;
   container.innerHTML = html;
+}
+
+// Asset summary modal helpers
+const ASSET_SUMMARIES = {
+  cash: { title: 'Cash', risk: 'Low', range: '0-5% typical', use: 'Short-term savings, liquidity and capital preservation.' },
+  bonds: { title: 'Bonds', risk: 'Low-Medium', range: '-5% to 15% (historical per year)', use: 'Income generation and portfolio stability.' },
+  commodities: { title: 'Commodities', risk: 'High', range: '-20% to 30%+', use: 'Inflation hedge and diversification; volatile.' },
+  equities: { title: 'Equities (Stocks)', risk: 'High', range: '-50% to 40%+ per year', use: 'Long-term growth potential; higher volatility.' }
+};
+
+function toggleAssetSummary(show, key) {
+  const modal = document.getElementById('asset-summary-modal');
+  if (!modal) return;
+  if (!show) return modal.classList.add('hidden');
+  const data = ASSET_SUMMARIES[key] || { title: key, risk:'?', range:'?', use:'?' };
+  document.getElementById('asset-summary-title').innerText = data.title;
+  document.getElementById('asset-summary-body').innerHTML = `
+    <p><strong>Risk level:</strong> ${data.risk}</p>
+    <p><strong>Range of annual returns:</strong> ${data.range}</p>
+    <p><strong>Useful for:</strong> ${data.use}</p>
+  `;
+  modal.classList.remove('hidden');
 }
 
 function toggleLeaderboardModal(show) {
