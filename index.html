@@ -18,7 +18,13 @@
   <header class="app-header">
     <img src="/logo.png" alt="Logo" class="app-logo" onerror="this.style.display='none'">
     <h1>Investing Simulation</h1>
-    <button id="global-leaderboard-btn" class="btn btn-purple btn-sm hidden" onclick="toggleLeaderboardModal(true)">🏆 Leaderboard</button>
+    <div class="header-actions">
+      <div id="balance-pill" class="balance-pill hidden">
+        <span class="balance-pill-icon">💷</span>
+        <span id="balance-pill-value">£0</span>
+      </div>
+      <button id="global-leaderboard-btn" class="btn btn-purple btn-sm hidden" onclick="toggleLeaderboardModal(true)">🏆 Leaderboard</button>
+    </div>
   </header>
 
   <div class="container">
@@ -204,13 +210,15 @@
           </thead>
           <tbody id="player-results-table"></tbody>
         </table>
-        <div class="results-total-row">
-          <span>New Total Portfolio Value:</span>
-          <strong id="new-portfolio-total">£0</strong>
+        <div id="results-total-row" class="results-total-row results-summary-hidden">
+          <div class="results-total-card">
+            <span>New Total Portfolio Value</span>
+            <strong id="new-portfolio-total">£0</strong>
+          </div>
         </div>
       </div>
 
-      <div class="text-center mt-15">
+      <div class="text-center mt-15 results-summary-hidden results-waiting-message">
         <p>Waiting for host to move to next round...</p>
       </div>
     </div>
@@ -280,6 +288,17 @@
   <!-- RESULTS COUNTDOWN OVERLAY -->
   <div id="results-countdown" class="countdown-overlay hidden">
     <div id="count-number" class="countdown-number">3</div>
+  </div>
+
+  <!-- QUIZ PREVIEW MODAL -->
+  <div id="quiz-preview-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>📝 Quiz Preview</h3>
+        <button class="close-btn" onclick="toggleQuizPreviewModal(false)">&times;</button>
+      </div>
+      <div id="quiz-preview-body"></div>
+    </div>
   </div>
 
   <script src="firebase-config.js"></script>

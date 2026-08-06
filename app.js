@@ -8,6 +8,8 @@ let currentQuestionIndex = 0;
 let pendingOptionIndex = null;
 let quizScore = 1000;
 let answeredQuestions = {}; // track answered questions locally: { [index]: { chosen, isCorrect } }
+let allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
+let lastAllocationAsset = 'equities';
 
 // Game State listener
 let gameRef = null;
@@ -84,23 +86,23 @@ function listenToGameAsAdmin() {
 
     if (data.state === 'LOBBY') {
       statusText.innerText = `Lobby open. ${playerList.length} player(s) joined.`;
-      actionsDiv.innerHTML = `<button class="btn btn-green" onclick="adminChangeState('QUIZ')">Start Quiz Phase</button>`;
+      actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button><button class="btn btn-green" onclick="adminChangeState('QUIZ')">Start Quiz Phase</button>`;
     } else if (data.state === 'QUIZ') {
       const allDone = playerList.length > 0 && playerList.every(p => p.quizFinished);
       statusText.innerText = allDone ? "All players finished the quiz!" : "Players are completing questions...";
-      actionsDiv.innerHTML = `<button class="btn btn-purple" onclick="adminChangeState('ALLOCATING')">Start Year 1 Investment</button>`;
+      actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button><button class="btn btn-purple" onclick="adminChangeState('ALLOCATING')">Start Year 1 Investment</button>`;
     } else if (data.state === 'ALLOCATING') {
       const year = data.currentYear;
       const allSubmitted = playerList.length > 0 && playerList.every(p => p.allocations && p.allocations['year' + year]);
       statusText.innerText = `Year ${year}: ${allSubmitted ? 'All allocations in!' : 'Waiting for portfolio allocations...'}`;
-      actionsDiv.innerHTML = `<button class="btn btn-green" onclick="processYearSimulation(${year})">Simulate Year ${year}</button>`;
+      actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button><button class="btn btn-green" onclick="processYearSimulation(${year})">Simulate Year ${year}</button>`;
     } else if (data.state === 'RESULTS') {
       const year = data.currentYear;
       statusText.innerText = `Year ${year} complete. View results or advance.`;
       if (year < 6) {
-        actionsDiv.innerHTML = `<button class="btn btn-purple" onclick="adminNextYear(${year + 1})">Advance to Year ${year + 1}</button>`;
+        actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button><button class="btn btn-purple" onclick="adminNextYear(${year + 1})">Advance to Year ${year + 1}</button>`;
       } else {
-        actionsDiv.innerHTML = `<button class="btn btn-green" onclick="adminChangeState('FINAL')">Show Final Leaderboard</button>`;
+        actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button><button class="btn btn-green" onclick="adminChangeState('FINAL')">Show Final Leaderboard</button>`;
       }
     } else if (data.state === 'FINAL') {
       statusText.innerText = "Game completed!";
@@ -113,8 +115,16 @@ function listenToGameAsAdmin() {
 
 function updateHeaderForState(state) {
   const titleEl = document.querySelector('.app-header h1');
+  const pill = document.getElementById('balance-pill');
   if (!titleEl) return;
-  if (state && state !== 'LOBBY') titleEl.classList.add('hidden'); else titleEl.classList.remove('hidden');
+  const isLiveGame = !!(currentGameCode && playerId);
+  if (state && state !== 'LOBBY' && state !== 'HOME') {
+    titleEl.classList.add('hidden');
+    if (pill && isLiveGame) pill.classList.remove('hidden');
+  } else {
+    titleEl.classList.remove('hidden');
+    if (pill) pill.classList.toggle('hidden', !isLiveGame);
+  }
 }
 
 function adminChangeState(newState) {
@@ -187,6 +197,7 @@ function joinGame() {
     document.getElementById('lobby-code-display').innerText = code;
     showScreen('screen-lobby');
     document.getElementById('global-leaderboard-btn').classList.remove('hidden');
+    updateBalancePill(1000);
 
     listenToGameAsPlayer();
   });
@@ -201,19 +212,24 @@ function listenToGameAsPlayer() {
 
     // update header visibility based on state
     updateHeaderForState(data.state);
+    updateBalancePill(myData ? myData.balance : quizScore);
 
     if (data.state === 'QUIZ') {
       showScreen('screen-quiz');
       renderQuestion();
+      updateBalancePill(myData ? myData.balance : quizScore);
     } else if (data.state === 'ALLOCATING') {
       showScreen('screen-allocate');
       setupAllocationScreen(data.currentYear, myData);
+      updateBalancePill(myData ? myData.balance : quizScore);
     } else if (data.state === 'RESULTS') {
       // perform countdown then show results with gentle fade-ins
       performResultsCountdown(data.currentYear, myData);
+      updateBalancePill(myData ? myData.balance : quizScore);
     } else if (data.state === 'FINAL') {
       showScreen('screen-final');
       renderFinalLeaderboard(data.players);
+      updateBalancePill(myData ? myData.balance : quizScore);
       // confetti for winner if this client is the winner
       maybeConfettiOnWin(data.players);
     }
@@ -246,7 +262,7 @@ function performResultsCountdown(year, myData) {
       showScreen('screen-results');
       // render results first with elements present but hidden
       renderResultsScreen(year, myData);
-      // fade in market grid slowly, then personal results after a pause
+          // fade in market grid slowly, then personal results after a pause
       const mGrid = document.getElementById('market-performance-grid');
       const personal = document.querySelector('.personal-results-box');
       if (mGrid) { mGrid.classList.remove('fade-in'); mGrid.classList.add('fade-in-slow'); }
@@ -271,6 +287,7 @@ function renderQuestion() {
   const q = QUIZ_QUESTIONS[currentQuestionIndex];
   document.getElementById('quiz-question-num').innerText = `Question ${currentQuestionIndex + 1} of 8`;
   document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString()}`;
+  updateBalancePill(quizScore);
   document.getElementById('quiz-question-text').innerText = q.question;
   document.getElementById('quiz-feedback-box').classList.add('hidden');
 
@@ -354,6 +371,7 @@ function confirmAnswer() {
 
   // Ensure currency formatting shows commas
   document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString()}`;
+  updateBalancePill(quizScore);
 }
 
 function nextQuestion() {
@@ -363,6 +381,8 @@ function nextQuestion() {
 
 // --- ALLOCATION LOGIC ---
 function setupAllocationScreen(year, myData) {
+  allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
+  lastAllocationAsset = 'equities';
   const yrSpans = document.querySelectorAll('.current-year-num');
   yrSpans.forEach(s => s.innerText = year);
 
@@ -401,34 +421,65 @@ function renderAllocationOptions() {
     const amountEl = document.getElementById(`alloc-amount-${asset}`);
     if (!container || !amountEl) return;
 
-    const currentValue = parseInt(document.getElementById(`alloc-${asset}`)?.value || 0, 10);
+    const selectedPercent = allocationPercentages[asset] || 0;
     container.innerHTML = '';
     options.forEach(percent => {
       const amount = getAllocationAmountFromPercent(percent, totalCash);
       const btn = document.createElement('button');
-      btn.className = `allocation-pill ${currentValue === amount ? 'active' : ''}`;
+      btn.className = `allocation-pill ${selectedPercent === percent ? 'active' : ''}`;
       btn.type = 'button';
       btn.innerHTML = `<strong>${percent}%</strong><small>£${amount.toLocaleString()}</small>`;
       btn.onclick = () => setAllocationPercent(`alloc-${asset}`, percent);
       container.appendChild(btn);
     });
-    amountEl.innerText = `£${currentValue.toLocaleString()}`;
+    amountEl.innerText = `£${getAllocationAmountFromPercent(selectedPercent, totalCash).toLocaleString()}`;
   });
+}
+
+function getAllocationAmounts(totalBalance, percentages) {
+  const assetIds = ['cash', 'bonds', 'commodities', 'equities'];
+  const exactAmounts = assetIds.map(asset => Math.round((percentages[asset] || 0) / 100 * totalBalance));
+  const total = exactAmounts.reduce((sum, value) => sum + value, 0);
+  const diff = totalBalance - total;
+
+  if (diff !== 0) {
+    const targetAsset = lastAllocationAsset || 'equities';
+    const targetIndex = assetIds.indexOf(targetAsset);
+    if (targetIndex >= 0) {
+      exactAmounts[targetIndex] += diff;
+    }
+  }
+
+  return exactAmounts;
 }
 
 function updateAllocationTotals() {
   const totalCash = parseInt(document.querySelectorAll('.player-total-cash')[0].innerText.replace(/,/g, '').replace(/[^0-9]/g, '')) || 1000;
-  const values = ['cash', 'bonds', 'commodities', 'equities'].map(asset => parseInt(document.getElementById(`alloc-${asset}`).value || 0, 10));
+  const values = getAllocationAmounts(totalCash, allocationPercentages);
   const total = values.reduce((sum, val) => sum + val, 0);
   const remaining = totalCash - total;
+  const overAllocated = total > totalCash;
 
-  document.getElementById('total-allocated-display').innerText = total.toLocaleString();
-  document.getElementById('remaining-allocated-display').innerText = `£${remaining.toLocaleString()}`;
+  const totalEl = document.getElementById('total-allocated-display');
+  const remainingEl = document.getElementById('remaining-allocated-display');
+  if (totalEl) totalEl.innerText = total.toLocaleString();
+  if (remainingEl) remainingEl.innerText = `£${remaining.toLocaleString()}`;
+
+  const summary = remainingEl ? remainingEl.parentElement : null;
+  const accentColor = overAllocated ? 'var(--red-accent)' : 'var(--green-primary)';
+  if (totalEl) totalEl.style.color = accentColor;
+  if (remainingEl) remainingEl.style.color = accentColor;
+  if (summary) summary.classList.toggle('over-allocated', overAllocated);
 
   values.forEach((value, idx) => {
     const asset = ['cash', 'bonds', 'commodities', 'equities'][idx];
     const amountEl = document.getElementById(`alloc-amount-${asset}`);
-    if (amountEl) amountEl.innerText = `£${value.toLocaleString()}`;
+    if (amountEl) {
+      amountEl.innerText = `£${value.toLocaleString()}`;
+      amountEl.style.color = overAllocated ? 'var(--red-accent)' : 'var(--green-primary)';
+    }
+    const hiddenEl = document.getElementById(`alloc-${asset}`);
+    if (hiddenEl) hiddenEl.value = value;
   });
 
   renderAllocationOptions();
@@ -469,12 +520,16 @@ function renderResultsScreen(year, myData) {
 
   const marketBox = document.querySelector('.market-overview-box');
   const personalBox = document.querySelector('.personal-results-box');
+  const totalRow = document.getElementById('results-total-row');
+  const waitingMessage = document.querySelector('.results-waiting-message');
   [marketBox, personalBox].forEach(box => {
     if (box) {
       box.classList.remove('results-section-visible');
       box.classList.add('results-section-hidden');
     }
   });
+  if (totalRow) totalRow.classList.add('results-summary-hidden');
+  if (waitingMessage) waitingMessage.classList.add('results-summary-hidden');
 
   if (myData && myData.history && myData.history['year' + year]) {
     const h = myData.history['year' + year];
@@ -510,20 +565,33 @@ function renderResultsScreen(year, myData) {
       marketBox.classList.remove('results-section-hidden');
       marketBox.classList.add('results-section-visible');
     }
-  }, 400);
+  }, 100);
 
   setTimeout(() => {
     if (personalBox) {
       personalBox.classList.remove('results-section-hidden');
       personalBox.classList.add('results-section-visible');
     }
-  }, 1100);
+    if (totalRow) {
+      totalRow.classList.remove('results-summary-hidden');
+      totalRow.classList.add('results-summary-visible');
+    }
+    if (waitingMessage) {
+      waitingMessage.classList.remove('results-summary-hidden');
+      waitingMessage.classList.add('results-summary-visible');
+    }
+  }, 3000);
 }
 
 // Quick-fill helpers for allocation inputs
 function setAllocationPercent(assetId, percent) {
   const totalCash = parseInt(document.querySelectorAll('.player-total-cash')[0].innerText.replace(/,/g, '').replace(/[^0-9]/g, '')) || 1000;
-  const value = Math.round((percent / 100) * totalCash);
+  const assetKey = assetId.replace('alloc-', '');
+  if (assetKey in allocationPercentages) {
+    allocationPercentages[assetKey] = percent;
+    lastAllocationAsset = assetKey;
+  }
+  const value = getAllocationAmountFromPercent(percent, totalCash);
   const el = document.getElementById(assetId);
   if (el) {
     el.value = value;
@@ -629,3 +697,32 @@ function openPlayerHistory(playerId) {
 }
 
 function togglePlayerHistory(show) { const modal = document.getElementById('player-history-modal'); if (!modal) return; if (!show) modal.classList.add('hidden'); }
+
+function updateBalancePill(balanceValue) {
+  const pill = document.getElementById('balance-pill');
+  const valueEl = document.getElementById('balance-pill-value');
+  if (!pill || !valueEl) return;
+  const displayValue = typeof balanceValue === 'number' ? balanceValue : (quizScore || 1000);
+  valueEl.innerText = `£${Math.round(displayValue).toLocaleString()}`;
+  pill.classList.toggle('hidden', !currentGameCode || !playerId);
+}
+
+function toggleQuizPreviewModal(show) {
+  const modal = document.getElementById('quiz-preview-modal');
+  if (!modal) return;
+  if (!show) {
+    modal.classList.add('hidden');
+    return;
+  }
+  const body = document.getElementById('quiz-preview-body');
+  if (!body) return;
+  body.innerHTML = QUIZ_QUESTIONS.map((q, idx) => `
+    <div class="quiz-preview-item">
+      <h4>${idx + 1}. ${q.question}</h4>
+      <ul>
+        ${q.options.map((opt, optionIdx) => `<li class="${optionIdx === q.answer ? 'quiz-answer-correct' : ''}">${opt}${optionIdx === q.answer ? ' ✅' : ''}</li>`).join('')}
+      </ul>
+    </div>
+  `).join('');
+  modal.classList.remove('hidden');
+}
