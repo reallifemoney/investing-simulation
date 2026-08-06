@@ -179,7 +179,7 @@ h1 {
 .option-card.wrong { border-color: var(--red-accent); background-color: #fdf2f2; color: var(--red-accent); }
 
 /* Ensure option text color remains readable */
-.option-card.correct, .option-card.wrong { color: inherit; }
+
 
 .feedback-box {
   margin-top: 20px;
@@ -203,7 +203,7 @@ h1 {
 .asset-card {
   border: 2px solid var(--border-light);
   border-radius: 12px;
-  padding: 15px;
+  padding: 12px;
 }
 .asset-desc { font-size: 0.85rem; color: #718096; margin-bottom: 8px; }
 
@@ -213,6 +213,10 @@ h1 {
 /* Quick-fill buttons for allocation */
 .alloc-quickfills { display:flex; gap:6px; margin-top:8px; }
 .alloc-quickfills .btn { padding:6px 8px; font-size:0.85rem; border-radius:8px; }
+
+.asset-row { display:flex; align-items:center; gap:8px; }
+.asset-row .input-field { flex: 1; }
+.asset-row .alloc-quickfills { margin-top:0; flex-wrap:wrap; }
 
 /* Keep total allocated visible on small screens */
 .alloc-summary { position: sticky; bottom: 12px; }
@@ -256,6 +260,7 @@ h1 {
   text-align: left;
   border-bottom: 1px solid var(--border-light);
 }
+.data-table th:nth-child(4), .data-table td:nth-child(4) { min-width: 120px; white-space: nowrap; }
 .data-table th { background: #f8fafc; font-weight: 600; }
 
 .market-grid {
@@ -270,6 +275,8 @@ h1 {
   border-radius: 8px;
   text-align: center;
 }
+.market-card.positive { border: 2px solid rgba(113, 198, 88, 0.25); background: linear-gradient(180deg, rgba(114,197,89,0.06), transparent); color: var(--green-primary); }
+.market-card.negative { border: 2px solid rgba(231,76,60,0.12); background: linear-gradient(180deg, rgba(231,76,60,0.04), transparent); color: var(--red-accent); }
 
 .results-total-row {
   display: flex;

@@ -56,13 +56,16 @@ function listenToGameAsAdmin() {
     if (!data) return;
 
     const players = data.players || {};
-    const playerList = Object.values(players);
+    const playerEntries = Object.entries(players);
     const tbody = document.getElementById('admin-players-list');
     tbody.innerHTML = '';
 
-    playerList.forEach(p => {
+    playerEntries.forEach(([pId, p]) => {
       const isAllocated = p.allocations && p.allocations['year' + data.currentYear];
       const tr = document.createElement('tr');
+      tr.setAttribute('data-player-id', pId);
+      tr.style.cursor = 'pointer';
+      tr.onclick = () => openPlayerHistory(pId);
       tr.innerHTML = `
         <td><strong>${p.name}</strong></td>
         <td>${p.quizFinished ? 'Completed' : (p.quizIndex || 0) + '/8'}</td>
@@ -404,12 +407,14 @@ function submitAllocation() {
 function renderResultsScreen(year, myData) {
   const returns = YEAR_RETURNS.find(r => r.year === year);
   const mGrid = document.getElementById('market-performance-grid');
-  mGrid.innerHTML = `
-    <div class="market-card">💵 Cash<br><strong>${(returns.cash * 100).toFixed(1)}%</strong></div>
-    <div class="market-card">🏛️ Bonds<br><strong>${(returns.bonds * 100).toFixed(1)}%</strong></div>
-    <div class="market-card">📉 Commodities<br><strong>${(returns.commodities * 100).toFixed(1)}%</strong></div>
-    <div class="market-card">📈 Equities<br><strong>${(returns.equities * 100).toFixed(1)}%</strong></div>
-  `;
+  mGrid.innerHTML = '';
+  const mk = [ ['cash','💵', returns.cash], ['bonds','🏛️', returns.bonds], ['commodities','📉', returns.commodities], ['equities','📈', returns.equities] ];
+  mk.forEach(([key, emoji, val])=>{
+    const div = document.createElement('div');
+    div.className = 'market-card ' + (val >= 0 ? 'positive' : 'negative');
+    div.innerHTML = `${emoji} ${key.charAt(0).toUpperCase()+key.slice(1)}<br><strong>${(val*100).toFixed(1)}%</strong>`;
+    mGrid.appendChild(div);
+  });
 
   if (myData && myData.history && myData.history['year' + year]) {
     const h = myData.history['year' + year];
@@ -526,3 +531,27 @@ function toggleLeaderboardModal(show) {
     modal.classList.add('hidden');
   }
 }
+
+function openPlayerHistory(playerId) {
+  const modal = document.getElementById('player-history-modal');
+  if (!modal) return;
+  db.ref(`games/${currentGameCode}/players/${playerId}`).once('value', snap => {
+    const p = snap.val();
+    const body = document.getElementById('player-history-body');
+    let html = `<h4>${p.name}</h4>`;
+    html += `<p>Final balance: £${Math.round(p.balance||0).toLocaleString()}</p>`;
+    html += `<h5>Allocations & Year History</h5>`;
+    html += `<table class="data-table"><thead><tr><th>Year</th><th>Allocations</th><th>Returns</th><th>End Balance</th></tr></thead><tbody>`;
+    for (let y=1;y<=6;y++){
+      const alloc = p.allocations && p.allocations['year'+y] ? p.allocations['year'+y] : null;
+      const hist = p.history && p.history['year'+y] ? p.history['year'+y] : null;
+      html += `<tr><td>${y}</td><td>${alloc? `Cash: £${(alloc.cash||0).toLocaleString()} Bonds: £${(alloc.bonds||0).toLocaleString()} Com: £${(alloc.commodities||0).toLocaleString()} Eq: £${(alloc.equities||0).toLocaleString()}` : '—'}</td><td>${hist? `Cash ${((hist.returns.cash||0)*100).toFixed(1)}%` : '—'}</td><td>${hist? '£'+Math.round(hist.newBalance).toLocaleString() : '—'}</td></tr>`;
+    }
+    html += `</tbody></table>`;
+    html += `<p><em>Note: individual quiz answers are not recorded in this session.</em></p>`;
+    body.innerHTML = html;
+    modal.classList.remove('hidden');
+  });
+}
+
+function togglePlayerHistory(show) { const modal = document.getElementById('player-history-modal'); if (!modal) return; if (!show) modal.classList.add('hidden'); }
