@@ -57,6 +57,7 @@ function listenToGameAsAdmin() {
 
     const players = data.players || {};
     const playerEntries = Object.entries(players);
+    const playerList = Object.values(players);
     const tbody = document.getElementById('admin-players-list');
     tbody.innerHTML = '';
 
