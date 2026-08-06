@@ -101,7 +101,15 @@ function listenToGameAsAdmin() {
       statusText.innerText = "Game completed!";
       actionsDiv.innerHTML = ``;
     }
+    // hide title when game is in progress
+    updateHeaderForState(data.state);
   });
+}
+
+function updateHeaderForState(state) {
+  const titleEl = document.querySelector('.app-header h1');
+  if (!titleEl) return;
+  if (state && state !== 'LOBBY') titleEl.classList.add('hidden'); else titleEl.classList.remove('hidden');
 }
 
 function adminChangeState(newState) {
@@ -186,6 +194,9 @@ function listenToGameAsPlayer() {
 
     const myData = data.players ? data.players[playerId] : null;
 
+    // update header visibility based on state
+    updateHeaderForState(data.state);
+
     if (data.state === 'QUIZ') {
       showScreen('screen-quiz');
       renderQuestion();
@@ -193,8 +204,8 @@ function listenToGameAsPlayer() {
       showScreen('screen-allocate');
       setupAllocationScreen(data.currentYear, myData);
     } else if (data.state === 'RESULTS') {
-      showScreen('screen-results');
-      renderResultsScreen(data.currentYear, myData);
+      // perform countdown then show results with gentle fade-ins
+      performResultsCountdown(data.currentYear, myData);
     } else if (data.state === 'FINAL') {
       showScreen('screen-final');
       renderFinalLeaderboard(data.players);
@@ -202,6 +213,41 @@ function listenToGameAsPlayer() {
       maybeConfettiOnWin(data.players);
     }
   });
+}
+
+function performResultsCountdown(year, myData) {
+  const overlay = document.getElementById('results-countdown');
+  const countEl = document.getElementById('count-number');
+  if (!overlay || !countEl) {
+    showScreen('screen-results');
+    renderResultsScreen(year, myData);
+    return;
+  }
+  overlay.classList.remove('hidden');
+  let count = 3;
+  countEl.innerText = count;
+  const tick = setInterval(() => {
+    count -= 1;
+    if (count > 0) {
+      countEl.innerText = count;
+      // trigger pop animation restart
+      countEl.classList.remove('pop');
+      void countEl.offsetWidth;
+      countEl.classList.add('pop');
+    } else {
+      clearInterval(tick);
+      overlay.classList.add('hidden');
+      // show results screen then animate in sections
+      showScreen('screen-results');
+      // render results first with elements present but hidden
+      renderResultsScreen(year, myData);
+      // fade in market grid, then personal results
+      const mGrid = document.getElementById('market-performance-grid');
+      const personal = document.querySelector('.personal-results-box');
+      if (mGrid) { mGrid.classList.add('fade-in'); }
+      setTimeout(() => { if (personal) personal.classList.add('fade-in'); }, 900);
+    }
+  }, 900);
 }
 
 // --- QUIZ LOGIC ---
