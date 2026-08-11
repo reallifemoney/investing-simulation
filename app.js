@@ -615,9 +615,17 @@ function renderResultsScreen(year, myData) {
   const outcomeHeader = document.getElementById('results-outcome-header');
   const quickSummary = document.getElementById('results-quick-summary');
   const gainLossEl = document.getElementById('year-gain-loss-total');
+  const positionEl = document.getElementById('current-position-value');
+  const totalGainLossEl = document.getElementById('total-gain-loss-value');
   const detailToggle = document.getElementById('results-detail-toggle');
   const waitingMessage = document.querySelector('.results-waiting-message');
   const actionsRow = document.getElementById('results-actions-row');
+
+  if (positionEl) positionEl.innerText = '--';
+  if (totalGainLossEl) {
+    totalGainLossEl.innerText = '£0';
+    totalGainLossEl.style.color = 'var(--purple-primary)';
+  }
   [marketBox, personalBox].forEach(box => {
     if (box) {
       box.classList.remove('results-section-visible');
@@ -671,6 +679,25 @@ function renderResultsScreen(year, myData) {
       outcomeHeader.style.color = gainLoss >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
     }
     document.getElementById('new-portfolio-total').innerText = `£${Math.round(h.newBalance).toLocaleString()}`;
+
+    const totalGainLoss = Math.round(h.newBalance - 1000);
+    if (totalGainLossEl) {
+      totalGainLossEl.innerText = `${totalGainLoss >= 0 ? '+' : '-'}£${Math.abs(totalGainLoss).toLocaleString()}`;
+      totalGainLossEl.style.color = totalGainLoss >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
+    }
+  }
+
+  if (currentGameCode && playerId && positionEl) {
+    db.ref(`games/${currentGameCode}/players`).once('value', snapshot => {
+      const players = snapshot.val() || {};
+      const rankedIds = Object.entries(players)
+        .sort(([, a], [, b]) => (b.balance || 0) - (a.balance || 0))
+        .map(([id]) => id);
+      const idx = rankedIds.indexOf(playerId);
+      if (idx >= 0) {
+        positionEl.innerText = formatOrdinal(idx + 1);
+      }
+    });
   }
 
   setTimeout(() => {
@@ -711,6 +738,16 @@ function renderResultsScreen(year, myData) {
       lastCelebratedResultsYear = year;
     }
   }, 2000);
+}
+
+function formatOrdinal(position) {
+  const mod100 = position % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${position}th`;
+  const mod10 = position % 10;
+  if (mod10 === 1) return `${position}st`;
+  if (mod10 === 2) return `${position}nd`;
+  if (mod10 === 3) return `${position}rd`;
+  return `${position}th`;
 }
 
 // Quick-fill helpers for allocation inputs
