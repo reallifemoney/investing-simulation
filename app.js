@@ -411,9 +411,15 @@ function setupAllocationScreen(year, myData) {
   }
 
   renderAllocationOptions();
+
+  // Reset input values & attach live-typing listeners
   ['cash', 'bonds', 'commodities', 'equities'].forEach(asset => {
     const el = document.getElementById(`alloc-${asset}`);
-    if (el) el.value = 0;
+    if (el) {
+      el.value = 0;
+      // Triggers immediate live update on keystrokes
+      el.oninput = updateAllocationTotals;
+    }
   });
 
   updateAllocationTotals();
@@ -462,14 +468,37 @@ function getAllocationAmounts(totalBalance, percentages) {
 }
 
 function updateAllocationTotals() {
-  const totalCash = parseInt(document.querySelectorAll('.player-total-cash')[0].innerText.replace(/,/g, '').replace(/[^0-9]/g, '')) || 1000;
-  const values = getAllocationAmounts(totalCash, allocationPercentages);
+  const totalCashSpans = document.querySelectorAll('.player-total-cash');
+  const totalCash = totalCashSpans.length
+    ? parseInt(totalCashSpans[0].innerText.replace(/,/g, '').replace(/[^0-9]/g, '')) || 1000
+    : 1000;
+
+  const assetIds = ['cash', 'bonds', 'commodities', 'equities'];
+  let values = [];
+
+  // Check if user is typing manually into input fields
+  const hasManualInputs = assetIds.some(asset => {
+    const el = document.getElementById(`alloc-${asset}`);
+    return el && el.value !== '' && parseInt(el.value) > 0;
+  });
+
+  if (hasManualInputs) {
+    values = assetIds.map(asset => {
+      const el = document.getElementById(`alloc-${asset}`);
+      return el ? parseInt(el.value) || 0 : 0;
+    });
+  } else {
+    // Fallback to percentage pill selections
+    values = getAllocationAmounts(totalCash, allocationPercentages);
+  }
+
   const total = values.reduce((sum, val) => sum + val, 0);
   const remaining = totalCash - total;
   const overAllocated = total > totalCash;
 
   const totalEl = document.getElementById('total-allocated-display');
   const remainingEl = document.getElementById('remaining-allocated-display');
+  
   if (totalEl) totalEl.innerText = total.toLocaleString();
   if (remainingEl) remainingEl.innerText = `£${remaining.toLocaleString()}`;
 
@@ -480,14 +509,16 @@ function updateAllocationTotals() {
   if (summary) summary.classList.toggle('over-allocated', overAllocated);
 
   values.forEach((value, idx) => {
-    const asset = ['cash', 'bonds', 'commodities', 'equities'][idx];
+    const asset = assetIds[idx];
     const amountEl = document.getElementById(`alloc-amount-${asset}`);
     if (amountEl) {
       amountEl.innerText = `£${value.toLocaleString()}`;
       amountEl.style.color = overAllocated ? 'var(--red-accent)' : 'var(--green-primary)';
     }
-    const hiddenEl = document.getElementById(`alloc-${asset}`);
-    if (hiddenEl) hiddenEl.value = value;
+    const inputEl = document.getElementById(`alloc-${asset}`);
+    if (inputEl && !hasManualInputs) {
+      inputEl.value = value;
+    }
   });
 
   renderAllocationOptions();
