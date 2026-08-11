@@ -155,10 +155,6 @@ h1 {
   display: block;
 }
 
-#join-code-input {
-  text-transform: uppercase;
-}
-
 .input-field:focus {
   outline: none;
   border-color: var(--purple-primary);
