@@ -9,6 +9,7 @@ let pendingOptionIndex = null;
 let quizScore = 1000;
 let answeredQuestions = {}; // track answered questions locally: { [index]: { chosen, isCorrect } }
 let allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
+let isResultsCountdownActive = false;
 
 // Game State listener
 let gameRef = null;
@@ -129,7 +130,7 @@ function updateHeaderForState(state) {
   } else {
     // Active Game State: Hide logo, show left balance pill & right leaderboard button
     if (headerEl) headerEl.classList.add('game-started');
-    if (pill && isLiveGame) pill.classList.remove('hidden');
+    if (pill) pill.classList.toggle('hidden', !isLiveGame || isResultsCountdownActive);
     if (leaderboardBtn) leaderboardBtn.classList.remove('hidden');
   }
 }
@@ -203,7 +204,6 @@ function joinGame() {
 
     document.getElementById('lobby-code-display').innerText = code;
     showScreen('screen-lobby');
-    document.getElementById('global-leaderboard-btn').classList.remove('hidden');
     updateBalancePill(1000);
 
     listenToGameAsPlayer();
@@ -216,6 +216,15 @@ function listenToGameAsPlayer() {
     if (!data) return;
 
     const myData = data.players ? data.players[playerId] : null;
+
+    const resultsScreen = document.getElementById('screen-results');
+    const shouldStartResultsCountdown = data.state === 'RESULTS'
+      && resultsScreen
+      && resultsScreen.classList.contains('hidden')
+      && !isResultsCountdownActive;
+    if (shouldStartResultsCountdown) {
+      isResultsCountdownActive = true;
+    }
 
     // update header visibility based on state
     updateHeaderForState(data.state);
@@ -231,7 +240,9 @@ function listenToGameAsPlayer() {
       updateBalancePill(myData ? myData.balance : quizScore);
     } else if (data.state === 'RESULTS') {
       // perform countdown then show results with gentle fade-ins
-      performResultsCountdown(data.currentYear, myData);
+      if (shouldStartResultsCountdown) {
+        performResultsCountdown(data.currentYear, myData);
+      }
       updateBalancePill(myData ? myData.balance : quizScore);
     } else if (data.state === 'FINAL') {
       showScreen('screen-final');
@@ -247,6 +258,8 @@ function performResultsCountdown(year, myData) {
   const overlay = document.getElementById('results-countdown');
   const countEl = document.getElementById('count-number');
   if (!overlay || !countEl) {
+    isResultsCountdownActive = false;
+    updateHeaderForState('RESULTS');
     showScreen('screen-results');
     renderResultsScreen(year, myData);
     return;
@@ -265,6 +278,8 @@ function performResultsCountdown(year, myData) {
     } else {
       clearInterval(tick);
       overlay.classList.add('hidden');
+      isResultsCountdownActive = false;
+      updateHeaderForState('RESULTS');
       // show results screen then animate in sections
       showScreen('screen-results');
       // render results first with elements present but hidden
@@ -491,6 +506,7 @@ function updateAllocationTotals() {
   const summary = remainingEl ? remainingEl.parentElement : null;
   const accentColor = overAllocated ? 'var(--red-accent)' : 'var(--green-primary)';
   if (totalEl) totalEl.style.color = accentColor;
+  if (totalEl && totalEl.parentElement) totalEl.parentElement.style.color = accentColor;
   if (remainingEl) remainingEl.style.color = accentColor;
   if (summary) summary.classList.toggle('over-allocated', overAllocated);
 
@@ -728,7 +744,6 @@ function updateBalancePill(balanceValue) {
   if (!pill || !valueEl) return;
   const displayValue = typeof balanceValue === 'number' ? balanceValue : (quizScore || 1000);
   valueEl.innerText = `£${Math.round(displayValue).toLocaleString()}`;
-  pill.classList.toggle('hidden', !currentGameCode || !playerId);
 }
 
 function toggleQuizPreviewModal(show) {
