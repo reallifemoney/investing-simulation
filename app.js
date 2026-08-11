@@ -12,6 +12,7 @@ let allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
 let currentGameState = null;
 let isResultsCountdownActive = false;
 let resultsCountdownYear = null;
+const ASSET_IDS = ['cash', 'bonds', 'commodities', 'equities'];
 
 // Game State listener
 let gameRef = null;
@@ -64,10 +65,19 @@ function listenToGameAsAdmin() {
     const playerEntries = Object.entries(players);
     const playerList = Object.values(players);
     const tbody = document.getElementById('admin-players-list');
+    const year = data.currentYear || 1;
+    const yearGainCol = document.getElementById('admin-year-gain-col');
+    if (yearGainCol) {
+      yearGainCol.innerText = `Year ${year} Gain / Loss`;
+    }
     tbody.innerHTML = '';
 
     playerEntries.forEach(([pId, p]) => {
-      const isAllocated = p.allocations && p.allocations['year' + data.currentYear];
+      const isAllocated = p.allocations && p.allocations['year' + year];
+      const hist = p.history && p.history['year' + year] ? p.history['year' + year] : null;
+      const gainValue = hist && typeof hist.gainLoss === 'number' ? hist.gainLoss : null;
+      const gainClass = gainValue === null ? '' : (gainValue >= 0 ? 'year-gain-positive' : 'year-gain-negative');
+      const gainText = gainValue === null ? '—' : `${gainValue >= 0 ? '+' : ''}£${Math.round(gainValue).toLocaleString()}`;
       const tr = document.createElement('tr');
       tr.setAttribute('data-player-id', pId);
       tr.style.cursor = 'pointer';
@@ -77,6 +87,7 @@ function listenToGameAsAdmin() {
         <td>${p.quizFinished ? 'Completed' : (p.quizIndex || 0) + '/8'}</td>
         <td>+£${(p.quizScore || 1000) - 1000}</td>
         <td><strong>£${Math.round(p.balance || 1000).toLocaleString()}</strong></td>
+        <td class="${gainClass}">${gainText}</td>
         <td>${isAllocated ? '✅ Submitted' : '⏳ Pending'}</td>
       `;
       tbody.appendChild(tr);
@@ -130,6 +141,10 @@ function updateHeaderForState(state) {
     if (headerEl) headerEl.classList.remove('game-started');
     if (pill) pill.classList.add('hidden');
     if (leaderboardBtn) leaderboardBtn.classList.add('hidden');
+    if (logoEl) {
+      const isPureHome = !currentGameCode;
+      logoEl.src = isPureHome ? '/investing-game.png' : '/logo.png';
+    }
   } else {
     // Active Game State: Hide logo, show left balance pill & right leaderboard button
     if (headerEl) headerEl.classList.add('game-started');
@@ -157,17 +172,31 @@ function processYearSimulation(year) {
 
     Object.keys(players).forEach(pId => {
       const p = players[pId];
-      const alloc = p.allocations['year' + year];
+      const alloc = p.allocations && p.allocations['year' + year] ? p.allocations['year' + year] : null;
+      if (!alloc) {
+        const unchangedBalance = p.balance || 1000;
+        updates[`players/${pId}/history/year${year}`] = {
+          alloc: { cash: 0, bonds: 0, commodities: 0, equities: 0 },
+          returns,
+          gainLoss: 0,
+          newBalance: unchangedBalance,
+          missedYear: true
+        };
+        updates[`players/${pId}/balance`] = unchangedBalance;
+        return;
+      }
       const newCash = alloc.cash * (1 + returns.cash);
       const newBonds = alloc.bonds * (1 + returns.bonds);
       const newCommodities = alloc.commodities * (1 + returns.commodities);
       const newEquities = alloc.equities * (1 + returns.equities);
       const newTotal = newCash + newBonds + newCommodities + newEquities;
+      const gainLoss = newTotal - (alloc.cash + alloc.bonds + alloc.commodities + alloc.equities);
 
       updates[`players/${pId}/balance`] = newTotal;
       updates[`players/${pId}/history/year${year}`] = {
         alloc,
         returns,
+        gainLoss,
         newBalance: newTotal
       };
     });
@@ -195,22 +224,35 @@ function joinGame() {
 
     currentGameCode = code;
     playerName = name;
-    playerId = db.ref('games/' + code + '/players').push().key;
+    db.ref(`games/${code}/players`).once('value', playersSnapshot => {
+      const players = playersSnapshot.val() || {};
+      const existingEntry = Object.entries(players).find(([, p]) => (p.name || '').toLowerCase() === name.toLowerCase());
 
-    db.ref(`games/${code}/players/${playerId}`).set({
-      name: name,
-      balance: 1000,
-      quizScore: 1000,
-      quizIndex: 0,
-      quizFinished: false
+      if (existingEntry) {
+        playerId = existingEntry[0];
+        const existing = existingEntry[1] || {};
+        quizScore = existing.quizScore || existing.balance || 1000;
+        currentQuestionIndex = existing.quizIndex || 0;
+      } else {
+        playerId = db.ref('games/' + code + '/players').push().key;
+        db.ref(`games/${code}/players/${playerId}`).set({
+          name: name,
+          balance: 1000,
+          quizScore: 1000,
+          quizIndex: 0,
+          quizFinished: false
+        });
+        quizScore = 1000;
+        currentQuestionIndex = 0;
+      }
+
+      document.getElementById('lobby-code-display').innerText = code;
+      showScreen('screen-lobby');
+      document.getElementById('global-leaderboard-btn').classList.remove('hidden');
+      updateBalancePill(quizScore);
+
+      listenToGameAsPlayer();
     });
-
-    document.getElementById('lobby-code-display').innerText = code;
-    showScreen('screen-lobby');
-    document.getElementById('global-leaderboard-btn').classList.remove('hidden');
-    updateBalancePill(1000);
-
-    listenToGameAsPlayer();
   });
 }
 
@@ -220,6 +262,10 @@ function listenToGameAsPlayer() {
     if (!data) return;
 
     const myData = data.players ? data.players[playerId] : null;
+    if (!myData) return;
+
+    quizScore = myData.quizScore || myData.balance || quizScore;
+    currentQuestionIndex = myData.quizIndex || currentQuestionIndex;
 
     // update header visibility based on state
     updateHeaderForState(data.state);
@@ -286,15 +332,8 @@ function performResultsCountdown(year, myData) {
       clearInterval(tick);
       overlay.classList.add('hidden');
       isResultsCountdownActive = false;
-      // show results screen then animate in sections
       showScreen('screen-results');
-      // render results first with elements present but hidden
       renderResultsScreen(year, myData);
-          // fade in market grid slowly, then personal results after a pause
-      const mGrid = document.getElementById('market-performance-grid');
-      const personal = document.querySelector('.personal-results-box');
-      if (mGrid) { mGrid.classList.remove('fade-in'); mGrid.classList.add('fade-in-slow'); }
-      setTimeout(() => { if (personal) { personal.classList.remove('fade-in'); personal.classList.add('fade-in-slow'); } }, 2000);
       updateBalancePill(myData ? myData.balance : quizScore);
     }
   }, 900);
@@ -421,6 +460,7 @@ function setupAllocationScreen(year, myData) {
   const isAlreadySubmitted = myData && myData.allocations && myData.allocations['year' + year];
   const btn = document.getElementById('submit-alloc-btn');
   const msg = document.getElementById('alloc-waiting-msg');
+  const existingAlloc = isAlreadySubmitted ? myData.allocations['year' + year] : null;
 
   if (isAlreadySubmitted) {
     btn.classList.add('hidden');
@@ -432,25 +472,30 @@ function setupAllocationScreen(year, myData) {
 
   renderAllocationOptions();
 
-  // Reset input values & attach live-typing listeners
-  ['cash', 'bonds', 'commodities', 'equities'].forEach(asset => {
+  ASSET_IDS.forEach(asset => {
     const el = document.getElementById(`alloc-${asset}`);
     if (el) {
-      el.value = 0;
-      // Triggers immediate live update on keystrokes
-      el.oninput = updateAllocationTotals;
+      el.value = existingAlloc ? (existingAlloc[asset] || 0) : 0;
     }
   });
 
+  if (existingAlloc) {
+    const updatedPercentages = {};
+    ASSET_IDS.forEach(asset => {
+      updatedPercentages[asset] = Math.round(((existingAlloc[asset] || 0) / totalCash) * 100);
+    });
+    allocationPercentages = updatedPercentages;
+  }
+
   updateAllocationTotals();
+  renderAllocationSubmissionState(!!isAlreadySubmitted, existingAlloc, totalCash);
 }
 
 function renderAllocationOptions() {
   const totalCash = parseInt(document.querySelectorAll('.player-total-cash')[0].innerText.replace(/,/g, '').replace(/[^0-9]/g, '')) || 1000;
   const options = getAllocationPercentOptions();
-  const assetIds = ['cash', 'bonds', 'commodities', 'equities'];
 
-  assetIds.forEach(asset => {
+  ASSET_IDS.forEach(asset => {
     const container = document.getElementById(`alloc-options-${asset}`);
     const amountEl = document.getElementById(`alloc-amount-${asset}`);
     if (!container || !amountEl) return;
@@ -471,8 +516,8 @@ function renderAllocationOptions() {
 }
 
 function getAllocationAmounts(totalBalance, percentages) {
-  const assetIds = ['cash', 'bonds', 'commodities', 'equities'];
-  return assetIds.map(asset => Math.round((percentages[asset] || 0) / 100 * totalBalance));
+  const dist = getExactAllocationDistribution(totalBalance, percentages);
+  return ASSET_IDS.map(asset => dist[asset] || 0);
 }
 
 function updateAllocationTotals() {
@@ -481,24 +526,7 @@ function updateAllocationTotals() {
     ? parseInt(totalCashSpans[0].innerText.replace(/,/g, '').replace(/[^0-9]/g, '')) || 1000
     : 1000;
 
-  const assetIds = ['cash', 'bonds', 'commodities', 'equities'];
-  let values = [];
-
-  // Check if user is typing manually into input fields
-  const hasManualInputs = assetIds.some(asset => {
-    const el = document.getElementById(`alloc-${asset}`);
-    return el && el.value !== '' && parseInt(el.value) > 0;
-  });
-
-  if (hasManualInputs) {
-    values = assetIds.map(asset => {
-      const el = document.getElementById(`alloc-${asset}`);
-      return el ? parseInt(el.value) || 0 : 0;
-    });
-  } else {
-    // Fallback to percentage pill selections
-    values = getAllocationAmounts(totalCash, allocationPercentages);
-  }
+  const values = getAllocationAmounts(totalCash, allocationPercentages);
 
   const total = values.reduce((sum, val) => sum + val, 0);
   const remaining = totalCash - total;
@@ -510,21 +538,21 @@ function updateAllocationTotals() {
   if (totalEl) totalEl.innerText = `£${total.toLocaleString()}`;
   if (remainingEl) remainingEl.innerText = `£${remaining.toLocaleString()}`;
 
-  const summary = remainingEl ? remainingEl.parentElement : null;
+  const summary = document.getElementById('alloc-summary-bar');
   const accentColor = overAllocated ? 'var(--red-accent)' : 'var(--green-primary)';
   if (totalEl) totalEl.style.color = accentColor;
   if (remainingEl) remainingEl.style.color = accentColor;
   if (summary) summary.classList.toggle('over-allocated', overAllocated);
 
   values.forEach((value, idx) => {
-    const asset = assetIds[idx];
+    const asset = ASSET_IDS[idx];
     const amountEl = document.getElementById(`alloc-amount-${asset}`);
     if (amountEl) {
       amountEl.innerText = `£${value.toLocaleString()}`;
       amountEl.style.color = overAllocated ? 'var(--red-accent)' : 'var(--green-primary)';
     }
     const inputEl = document.getElementById(`alloc-${asset}`);
-    if (inputEl && !hasManualInputs) {
+    if (inputEl) {
       inputEl.value = value;
     }
   });
@@ -534,10 +562,11 @@ function updateAllocationTotals() {
 
 function submitAllocation() {
   const totalCash = parseInt(document.querySelectorAll('.player-total-cash')[0].innerText.replace(/,/g, '')) || 1000;
-  const cash = parseInt(document.getElementById('alloc-cash').value) || 0;
-  const bonds = parseInt(document.getElementById('alloc-bonds').value) || 0;
-  const commodities = parseInt(document.getElementById('alloc-commodities').value) || 0;
-  const equities = parseInt(document.getElementById('alloc-equities').value) || 0;
+  const allocationAmounts = getExactAllocationDistribution(totalCash, allocationPercentages);
+  const cash = allocationAmounts.cash;
+  const bonds = allocationAmounts.bonds;
+  const commodities = allocationAmounts.commodities;
+  const equities = allocationAmounts.equities;
 
   if (cash + bonds + commodities + equities !== totalCash) {
     alert(`Total allocations must equal exactly your available balance (£${totalCash.toLocaleString()}).`);
@@ -548,6 +577,8 @@ function submitAllocation() {
     const yr = snapshot.val().currentYear;
     db.ref(`games/${currentGameCode}/players/${playerId}/allocations/year${yr}`).set({
       cash, bonds, commodities, equities
+    }).then(() => {
+      renderAllocationSubmissionState(true, allocationAmounts, totalCash);
     });
   });
 }
@@ -569,6 +600,7 @@ function renderResultsScreen(year, myData) {
   const personalBox = document.querySelector('.personal-results-box');
   const totalRow = document.getElementById('results-total-row');
   const waitingMessage = document.querySelector('.results-waiting-message');
+  const actionsRow = document.getElementById('results-actions-row');
   [marketBox, personalBox].forEach(box => {
     if (box) {
       box.classList.remove('results-section-visible');
@@ -577,6 +609,7 @@ function renderResultsScreen(year, myData) {
   });
   if (totalRow) totalRow.classList.add('results-summary-hidden');
   if (waitingMessage) waitingMessage.classList.add('results-summary-hidden');
+  if (actionsRow) actionsRow.classList.add('results-summary-hidden');
 
   if (myData && myData.history && myData.history['year' + year]) {
     const h = myData.history['year' + year];
@@ -627,6 +660,10 @@ function renderResultsScreen(year, myData) {
       waitingMessage.classList.remove('results-summary-hidden');
       waitingMessage.classList.add('results-summary-visible');
     }
+    if (actionsRow) {
+      actionsRow.classList.remove('results-summary-hidden');
+      actionsRow.classList.add('results-summary-visible');
+    }
   }, 3000);
 }
 
@@ -643,6 +680,48 @@ function setAllocationPercent(assetId, percent) {
     el.value = value;
     updateAllocationTotals();
   }
+}
+
+function renderAllocationSubmissionState(isSubmitted, allocation, totalCash) {
+  const submittedView = document.getElementById('alloc-submitted-view');
+  const summaryBody = document.getElementById('alloc-submitted-summary');
+  const submitBtn = document.getElementById('submit-alloc-btn');
+  const allocationGrid = document.querySelector('.allocation-grid');
+  const summaryBar = document.getElementById('alloc-summary-bar');
+  const waitingMessage = document.getElementById('alloc-waiting-msg');
+
+  if (!submittedView || !summaryBody || !submitBtn || !allocationGrid || !summaryBar || !waitingMessage) return;
+
+  if (!isSubmitted) {
+    submittedView.classList.add('hidden');
+    allocationGrid.classList.remove('hidden');
+    summaryBar.classList.remove('hidden');
+    submitBtn.classList.remove('hidden');
+    waitingMessage.classList.add('hidden');
+    return;
+  }
+
+  const alloc = allocation || getExactAllocationDistribution(totalCash, allocationPercentages);
+  const rows = ASSET_IDS.map(asset => {
+    const label = asset.charAt(0).toUpperCase() + asset.slice(1);
+    const value = alloc[asset] || 0;
+    return `<tr><td>${label}</td><td>£${value.toLocaleString()}</td></tr>`;
+  }).join('');
+
+  summaryBody.innerHTML = `
+    <table class="alloc-submitted-summary-grid">
+      <tbody>
+        ${rows}
+        <tr><td><strong>Total allocated</strong></td><td><strong>£${(alloc.cash + alloc.bonds + alloc.commodities + alloc.equities).toLocaleString()}</strong></td></tr>
+      </tbody>
+    </table>
+  `;
+
+  allocationGrid.classList.add('hidden');
+  summaryBar.classList.add('hidden');
+  submitBtn.classList.add('hidden');
+  waitingMessage.classList.add('hidden');
+  submittedView.classList.remove('hidden');
 }
 
 // After final leaderboard, if current player is top show confetti
@@ -744,6 +823,39 @@ function openPlayerHistory(playerId) {
 
 function togglePlayerHistory(show) { const modal = document.getElementById('player-history-modal'); if (!modal) return; if (!show) modal.classList.add('hidden'); }
 
+function openSimulationHistoryModal() {
+  const modal = document.getElementById('simulation-history-modal');
+  if (!modal || !currentGameCode || !playerId) return;
+
+  db.ref(`games/${currentGameCode}/players/${playerId}`).once('value', snap => {
+    const p = snap.val() || {};
+    const body = document.getElementById('simulation-history-body');
+    if (!body) return;
+
+    let html = '<table class="data-table"><thead><tr><th>Year</th><th>Gain / Loss</th><th>Total after year</th></tr></thead><tbody>';
+    for (let y = 1; y <= 6; y++) {
+      const hist = p.history && p.history['year' + y] ? p.history['year' + y] : null;
+      const gain = hist && typeof hist.gainLoss === 'number' ? hist.gainLoss : 0;
+      const total = hist && typeof hist.newBalance === 'number' ? hist.newBalance : null;
+      const gainClass = gain >= 0 ? 'year-gain-positive' : 'year-gain-negative';
+      html += `<tr>
+        <td>${y}</td>
+        <td class="${gainClass}">${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString()}</td>
+        <td>${total === null ? '—' : `£${Math.round(total).toLocaleString()}`}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    body.innerHTML = html;
+    modal.classList.remove('hidden');
+  });
+}
+
+function toggleSimulationHistoryModal(show) {
+  const modal = document.getElementById('simulation-history-modal');
+  if (!modal) return;
+  if (!show) modal.classList.add('hidden');
+}
+
 function updateBalancePill(balanceValue) {
   const pill = document.getElementById('balance-pill');
   const valueEl = document.getElementById('balance-pill-value');
@@ -772,4 +884,11 @@ function toggleQuizPreviewModal(show) {
     </div>
   `).join('');
   modal.classList.remove('hidden');
+}
+
+const joinCodeInput = document.getElementById('join-code-input');
+if (joinCodeInput) {
+  joinCodeInput.addEventListener('input', () => {
+    joinCodeInput.value = (joinCodeInput.value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+  });
 }

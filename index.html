@@ -23,8 +23,8 @@
     <span id="balance-pill-value">£0</span>
   </div>
 
-  <!-- Center: Logo (Home Mode) -->
-  <img src="/logo.png" alt="Logo" class="app-logo" onerror="this.style.display='none'">
+  <!-- Center: Logo (Home/Lobby Mode) -->
+  <img src="/investing-game.png" alt="Logo" class="app-logo" onerror="this.style.display='none'">
 
   <!-- Right Side: Leaderboard Button -->
   <div class="header-actions">
@@ -42,7 +42,7 @@
       <div class="home-actions">
         <div class="action-box main-join">
           <input type="text" id="player-name-input" placeholder="Your name" class="input-field">
-          <input type="text" id="join-code-input" placeholder="Game code (e.g. ABCD)" class="input-field">
+          <input type="text" id="join-code-input" placeholder="Game code (e.g. ABCD)" class="input-field" maxlength="4" autocapitalize="characters" autocomplete="off" spellcheck="false">
           <button class="btn btn-green btn-full large-join" onclick="joinGame()">Join Game</button>
         </div>
       </div>
@@ -75,11 +75,12 @@
               <th>Quiz Progress</th>
               <th>Quiz Bonus</th>
               <th>Current Balance</th>
+              <th id="admin-year-gain-col">Year Gain / Loss</th>
               <th>Allocations Status</th>
             </tr>
           </thead>
           <tbody id="admin-players-list">
-            <tr><td colspan="5" class="text-center">No players joined yet.</td></tr>
+            <tr><td colspan="6" class="text-center">No players joined yet.</td></tr>
           </tbody>
         </table>
       </div>
@@ -180,14 +181,19 @@
         </div>
       </div>
 
-      <div class="alloc-summary">
-        <div>Total Allocated: <strong id="total-allocated-display">£0</strong> / £<span class="player-total-cash">1000</span></div>
-        <div>Remaining: <strong id="remaining-allocated-display">£1000</strong></div>
+      <div class="alloc-summary" id="alloc-summary-bar">
+        <div><span class="alloc-summary-label">Total allocated</span><strong>£<span id="total-allocated-display">0</span></strong> / £<span class="player-total-cash">1000</span></div>
+        <div><span class="alloc-summary-label">Remaining</span><strong id="remaining-allocated-display">£1000</strong></div>
       </div>
 
       <button id="submit-alloc-btn" class="btn btn-green btn-full mt-15" onclick="submitAllocation()">Submit Allocation</button>
       <div id="alloc-waiting-msg" class="text-center mt-15 hidden alert-info">
         ✅ Allocation submitted! Waiting for admin to process Year <span class="current-year-num">1</span> results...
+      </div>
+      <div id="alloc-submitted-view" class="alloc-submitted-view hidden">
+        <h3>Waiting for Year <span class="current-year-num">1</span> results</h3>
+        <p class="alloc-submitted-note">Your allocation has been submitted. Waiting for the host to run the simulation.</p>
+        <div id="alloc-submitted-summary"></div>
       </div>
     </div>
 
@@ -196,7 +202,6 @@
       <h2>Year <span class="current-year-num">1</span> Results</h2>
 
       <div class="market-overview-box">
-        <h3>📊 Asset Class Performance</h3>
         <div class="market-grid" id="market-performance-grid"></div>
       </div>
 
@@ -216,10 +221,15 @@
         </table>
         <div id="results-total-row" class="results-total-row results-summary-hidden">
           <div class="results-total-card">
-            <span>New Total Portfolio Value</span>
+            <span>Your new total</span>
             <strong id="new-portfolio-total">£0</strong>
           </div>
         </div>
+      </div>
+
+      <div class="results-actions results-summary-hidden" id="results-actions-row">
+        <button class="btn btn-gray" onclick="openSimulationHistoryModal()">View history</button>
+        <button class="btn btn-purple" onclick="toggleLeaderboardModal(true)">View leaderboard</button>
       </div>
 
       <div class="text-center mt-15 results-summary-hidden results-waiting-message">
@@ -272,6 +282,23 @@
         <p class="text-center">Loading...</p>
       </div>
       <div style="text-align:right; margin-top:12px;"><button class="btn btn-gray" onclick="togglePlayerHistory(false)">Close</button></div>
+    </div>
+  </div>
+
+  <!-- MY SIMULATION HISTORY MODAL -->
+  <div id="simulation-history-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>Simulation History</h3>
+        <button class="close-btn" onclick="toggleSimulationHistoryModal(false)">&times;</button>
+      </div>
+      <div id="simulation-history-body">
+        <p class="text-center">Loading...</p>
+      </div>
+      <div class="simulation-history-actions">
+        <button class="btn btn-gray" onclick="toggleSimulationHistoryModal(false)">Close</button>
+        <button class="btn btn-purple" onclick="toggleLeaderboardModal(true)">View leaderboard</button>
+      </div>
     </div>
   </div>
 
