@@ -612,6 +612,7 @@ function renderResultsScreen(year, myData) {
 
   const marketBox = document.querySelector('.market-overview-box');
   const personalBox = document.querySelector('.personal-results-box');
+  const outcomeHeader = document.getElementById('results-outcome-header');
   const quickSummary = document.getElementById('results-quick-summary');
   const gainLossEl = document.getElementById('year-gain-loss-total');
   const detailToggle = document.getElementById('results-detail-toggle');
@@ -628,6 +629,7 @@ function renderResultsScreen(year, myData) {
     detailToggle.classList.add('results-summary-hidden');
     detailToggle.open = false;
   }
+  if (outcomeHeader) outcomeHeader.classList.add('results-summary-hidden');
   if (waitingMessage) waitingMessage.classList.add('results-summary-hidden');
   if (actionsRow) actionsRow.classList.add('results-summary-hidden');
 
@@ -665,6 +667,10 @@ function renderResultsScreen(year, myData) {
       gainLossEl.innerText = `${gainLossSign}£${Math.round(gainLoss).toLocaleString()}`;
       gainLossEl.style.color = gainLoss >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
     }
+    if (outcomeHeader) {
+      outcomeHeader.innerText = gainLoss >= 0 ? 'You made profit this year!' : 'You lost money this year!';
+      outcomeHeader.style.color = gainLoss >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
+    }
     document.getElementById('new-portfolio-total').innerText = `£${Math.round(h.newBalance).toLocaleString()}`;
   }
 
@@ -679,6 +685,10 @@ function renderResultsScreen(year, myData) {
     if (personalBox) {
       personalBox.classList.remove('results-section-hidden');
       personalBox.classList.add('results-section-visible');
+    }
+    if (outcomeHeader) {
+      outcomeHeader.classList.remove('results-summary-hidden');
+      outcomeHeader.classList.add('results-summary-visible');
     }
     if (quickSummary) {
       quickSummary.classList.remove('results-summary-hidden');
@@ -778,7 +788,7 @@ function launchConfetti(){
   cvs.width = window.innerWidth; cvs.height = window.innerHeight;
   const ctx = cvs.getContext('2d');
   const pieces = [];
-  for(let i=0;i<120;i++){ pieces.push({x:Math.random()*cvs.width,y:Math.random()*-cvs.height/2,vy:2+Math.random()*6, size:4+Math.random()*8, color:`hsl(${Math.random()*360},80%,60%)`}); }
+  for(let i=0;i<120;i++){ pieces.push({x:Math.random()*cvs.width,y:cvs.height*0.5 + (Math.random()*60 - 30),vy:2+Math.random()*6, size:4+Math.random()*8, color:`hsl(${Math.random()*360},80%,60%)`}); }
   let frames = 0;
   function frame(){ ctx.clearRect(0,0,cvs.width,cvs.height); pieces.forEach(p=>{ p.y+=p.vy; ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y,p.size,p.size); }); frames++; if(frames<180) requestAnimationFrame(frame); else cvs.remove(); }
   frame();
@@ -795,11 +805,11 @@ function launchConfettiCannon(mode = 'center') {
 
   const emitters = mode === 'sides'
     ? [
-        { x: 90, y: cvs.height - 20, vxMin: 2.5, vxMax: 6.2, vyMin: -12, vyMax: -6 },
-        { x: cvs.width - 90, y: cvs.height - 20, vxMin: -6.2, vxMax: -2.5, vyMin: -12, vyMax: -6 }
+        { x: 90, y: cvs.height * 0.52, vxMin: 2.5, vxMax: 6.2, vyMin: -12, vyMax: -6 },
+        { x: cvs.width - 90, y: cvs.height * 0.52, vxMin: -6.2, vxMax: -2.5, vyMin: -12, vyMax: -6 }
       ]
     : [
-        { x: cvs.width / 2, y: cvs.height - 20, vxMin: -3.6, vxMax: 3.6, vyMin: -12, vyMax: -7 }
+        { x: cvs.width / 2, y: cvs.height * 0.52, vxMin: -3.6, vxMax: 3.6, vyMin: -12, vyMax: -7 }
       ];
 
   emitters.forEach(emitter => {

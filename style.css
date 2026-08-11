@@ -531,6 +531,12 @@ h1 {
   grid-template-columns: 1fr;
   gap: 10px;
 }
+.results-outcome-header {
+  margin: 16px 0 6px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #334155;
+}
 @media (min-width: 640px) {
   .results-quick-summary {
     grid-template-columns: 1fr 1fr;
