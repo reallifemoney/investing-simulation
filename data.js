@@ -1,7 +1,7 @@
 const QUIZ_QUESTIONS = [
   {
     id: 1,
-    question: "What is a Stock (Equity)?",
+    question: "What is a stock (equity)?",
     options: [
       "A loan you make to a government",
       "A little piece of a company",
