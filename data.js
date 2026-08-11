@@ -4,7 +4,7 @@ const QUIZ_QUESTIONS = [
     question: "What is a Stock (Equity)?",
     options: [
       "A loan you make to a government",
-      "A share of ownership in a company",
+      "A little piece of a company",
       "A guaranteed high-interest savings account",
       "A physical commodity like gold or oil"
     ],
@@ -14,29 +14,29 @@ const QUIZ_QUESTIONS = [
     id: 2,
     question: "What is a Bond?",
     options: [
-      "A contract to purchase physical raw goods",
-      "Ownership in a private startup company",
-      "An IOU / loan made to a government or corporation",
+      "A commodity",
+      "Little piece of a company",
+      "An IOU / loan made to a government or company",
       "A cryptocurrency token"
     ],
     answer: 2
   },
   {
     id: 3,
-    question: "Which of the following is considered a Commodity?",
+    question: "Which of the following is considered a commodity?",
     options: [
-      "Shares of Apple Inc.",
-      "UK Government Gilts",
-      "Crude Oil and Gold",
+      "Shares in Tesco",
+      "UK Government gilts",
+      "Crude oil and gold",
       "Cash in a bank account"
     ],
     answer: 2
   },
   {
     id: 4,
-    question: "Why do investors buy Bonds?",
+    question: "Why do investors buy bonds?",
     options: [
-      "For reliable regular interest income and lower volatility",
+      "For fixed income and lower overall risk",
       "To guarantee 50% yearly returns",
       "To obtain voting rights in corporate decisions",
       "To avoid paying any taxes"
@@ -45,47 +45,47 @@ const QUIZ_QUESTIONS = [
   },
   {
     id: 5,
-    question: "How do Stocks generally compare to Cash over long horizons?",
+    question: "How do stocks generally compare to cash over the long-term?",
     options: [
-      "Cash always outperforms stocks over 10 years",
+      "Cash is likely to outperform stocks",
       "Stocks offer higher growth potential with higher price volatility",
-      "Stocks are completely risk-free",
+      "Stocks are less risky than cash",
       "Cash loses all value immediately"
     ],
     answer: 1
   },
   {
     id: 6,
-    question: "What typically drives price changes in Commodities like Gold or Wheat?",
+    question: "Which of these is considered most risky?",
     options: [
-      "Corporate dividends paid quarterly",
-      "Global supply and demand dynamics and economic events",
-      "Fixed interest rates set by central banks",
-      "Stock market index splits"
+      "Cash in savings account",
+      "Corporate bond",
+      "Government bond",
+      "Cash in current account"
     ],
     answer: 1
   },
   {
     id: 7,
-    question: "What is diversification?",
+    question: "Which of these generally cause bonds (specifically) to fall in value?",
     options: [
-      "Putting all your funds into a single high-performing stock",
-      "Keeping 100% of money under your mattress",
-      "Spreading investments across different asset types to reduce risk",
-      "Borrowing money to gamble on options"
+      "Interest rates rise",
+      "Inflation falls",
+      "Recession",
+      "Interest rates fall"
     ],
-    answer: 2
+    answer: 0
   },
   {
     id: 8,
-    question: "If inflation is 4% and your Cash savings account earns 1%, what happens to your purchasing power?",
+    question: "Which of these would you expect to perform worst when interest rates rise?",
     options: [
-      "Your purchasing power increases by 3%",
-      "Your purchasing power decreases by 3%",
-      "Your purchasing power stays exactly the same",
-      "Your cash doubles"
+      "3-year corporate bond",
+      "10-year corporate bond",
+      "10-year Government bond",
+      "20-year Government bond"
     ],
-    answer: 1
+    answer: 3
   }
 ];
 
