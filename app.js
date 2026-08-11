@@ -144,6 +144,7 @@ function updateHeaderForState(state) {
     if (logoEl) {
       const isPureHome = !currentGameCode;
       logoEl.src = isPureHome ? '/investing-game.png' : '/logo.png';
+      logoEl.classList.toggle('app-logo-compact', !isPureHome);
     }
   } else {
     // Active Game State: Hide logo, show left balance pill & right leaderboard button
@@ -458,17 +459,7 @@ function setupAllocationScreen(year, myData) {
   totalSpans.forEach(s => s.innerText = totalCash.toLocaleString());
 
   const isAlreadySubmitted = myData && myData.allocations && myData.allocations['year' + year];
-  const btn = document.getElementById('submit-alloc-btn');
-  const msg = document.getElementById('alloc-waiting-msg');
   const existingAlloc = isAlreadySubmitted ? myData.allocations['year' + year] : null;
-
-  if (isAlreadySubmitted) {
-    btn.classList.add('hidden');
-    msg.classList.remove('hidden');
-  } else {
-    btn.classList.remove('hidden');
-    msg.classList.add('hidden');
-  }
 
   renderAllocationOptions();
 
@@ -529,19 +520,15 @@ function updateAllocationTotals() {
   const values = getAllocationAmounts(totalCash, allocationPercentages);
 
   const total = values.reduce((sum, val) => sum + val, 0);
-  const remaining = totalCash - total;
   const overAllocated = total > totalCash;
 
   const totalEl = document.getElementById('total-allocated-display');
-  const remainingEl = document.getElementById('remaining-allocated-display');
   
-  if (totalEl) totalEl.innerText = `£${total.toLocaleString()}`;
-  if (remainingEl) remainingEl.innerText = `£${remaining.toLocaleString()}`;
+  if (totalEl) totalEl.innerText = total.toLocaleString();
 
   const summary = document.getElementById('alloc-summary-bar');
   const accentColor = overAllocated ? 'var(--red-accent)' : 'var(--green-primary)';
   if (totalEl) totalEl.style.color = accentColor;
-  if (remainingEl) remainingEl.style.color = accentColor;
   if (summary) summary.classList.toggle('over-allocated', overAllocated);
 
   values.forEach((value, idx) => {
@@ -686,18 +673,18 @@ function renderAllocationSubmissionState(isSubmitted, allocation, totalCash) {
   const submittedView = document.getElementById('alloc-submitted-view');
   const summaryBody = document.getElementById('alloc-submitted-summary');
   const submitBtn = document.getElementById('submit-alloc-btn');
+  const activeView = document.getElementById('alloc-active-view');
   const allocationGrid = document.querySelector('.allocation-grid');
   const summaryBar = document.getElementById('alloc-summary-bar');
-  const waitingMessage = document.getElementById('alloc-waiting-msg');
 
-  if (!submittedView || !summaryBody || !submitBtn || !allocationGrid || !summaryBar || !waitingMessage) return;
+  if (!submittedView || !summaryBody || !submitBtn || !allocationGrid || !summaryBar || !activeView) return;
 
   if (!isSubmitted) {
     submittedView.classList.add('hidden');
+    activeView.classList.remove('hidden');
     allocationGrid.classList.remove('hidden');
     summaryBar.classList.remove('hidden');
     submitBtn.classList.remove('hidden');
-    waitingMessage.classList.add('hidden');
     return;
   }
 
@@ -720,7 +707,7 @@ function renderAllocationSubmissionState(isSubmitted, allocation, totalCash) {
   allocationGrid.classList.add('hidden');
   summaryBar.classList.add('hidden');
   submitBtn.classList.add('hidden');
-  waitingMessage.classList.add('hidden');
+  activeView.classList.add('hidden');
   submittedView.classList.remove('hidden');
 }
 
@@ -854,6 +841,11 @@ function toggleSimulationHistoryModal(show) {
   const modal = document.getElementById('simulation-history-modal');
   if (!modal) return;
   if (!show) modal.classList.add('hidden');
+}
+
+function openLeaderboardFromHistory() {
+  toggleSimulationHistoryModal(false);
+  toggleLeaderboardModal(true);
 }
 
 function updateBalancePill(balanceValue) {

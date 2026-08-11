@@ -130,8 +130,15 @@
 
     <!-- SCREEN 5: INVESTMENT ALLOCATION PHASE -->
     <div id="screen-allocate" class="card hidden">
-      <h2>Year <span class="current-year-num">1</span> Investment Allocation</h2>
-      <p class="allocation-intro">Distribute your total available funds (<strong>£<span class="player-total-cash">1000</span></strong>) across the 4 asset classes.</p>
+      <div id="alloc-active-view">
+        <h2 id="alloc-year-title">Year <span class="current-year-num">1</span></h2>
+
+        <div class="alloc-summary" id="alloc-summary-bar">
+          <div>
+            <span class="alloc-summary-label">Total allocated</span>
+            <strong>£<span id="total-allocated-display">0</span></strong> / £<span class="player-total-cash">1000</span>
+          </div>
+        </div>
 
       <div class="allocation-grid">
         <div class="asset-card">
@@ -180,19 +187,16 @@
         </div>
       </div>
 
-      <div class="alloc-summary" id="alloc-summary-bar">
-        <div><span class="alloc-summary-label">Total allocated</span><strong>£<span id="total-allocated-display">0</span></strong> / £<span class="player-total-cash">1000</span></div>
-        <div><span class="alloc-summary-label">Remaining</span><strong id="remaining-allocated-display">£1000</strong></div>
+      <button id="submit-alloc-btn" class="btn btn-green btn-full mt-15" onclick="submitAllocation()">Submit Allocation</button>
       </div>
 
-      <button id="submit-alloc-btn" class="btn btn-green btn-full mt-15" onclick="submitAllocation()">Submit Allocation</button>
-      <div id="alloc-waiting-msg" class="text-center mt-15 hidden alert-info">
-        ✅ Allocation submitted! Waiting for admin to process Year <span class="current-year-num">1</span> results...
-      </div>
       <div id="alloc-submitted-view" class="alloc-submitted-view hidden">
-        <h3>Waiting for Year <span class="current-year-num">1</span> results</h3>
-        <p class="alloc-submitted-note">Your allocation has been submitted. Waiting for the host to run the simulation.</p>
+        <div class="pulse-loader"></div>
+        <p class="alloc-submitted-message">Waiting for Year <span class="current-year-num">1</span> results...</p>
+        <div class="alloc-submitted-card">
+          <h4>Your chosen investments</h4>
         <div id="alloc-submitted-summary"></div>
+        </div>
       </div>
     </div>
 
@@ -296,7 +300,7 @@
       </div>
       <div class="simulation-history-actions">
         <button class="btn btn-gray" onclick="toggleSimulationHistoryModal(false)">Close</button>
-        <button class="btn btn-purple" onclick="toggleLeaderboardModal(true)">View leaderboard</button>
+        <button class="btn btn-purple" onclick="openLeaderboardFromHistory()">View leaderboard</button>
       </div>
     </div>
   </div>
