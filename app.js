@@ -6,6 +6,7 @@ let isAdmin = false;
 
 let currentQuestionIndex = 0;
 let pendingOptionIndex = null;
+let isAdvancingQuestion = false;
 let quizScore = 1000;
 let answeredQuestions = {}; // track answered questions locally: { [index]: { chosen, isCorrect } }
 let allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
@@ -248,6 +249,10 @@ function joinGame() {
       }
 
       document.getElementById('lobby-code-display').innerText = code;
+      const lobbyTitle = document.getElementById('lobby-title');
+      if (lobbyTitle) lobbyTitle.innerText = "You're In!";
+      const lobbyScreen = document.getElementById('screen-lobby');
+      if (lobbyScreen) lobbyScreen.classList.remove('lobby-quiz-complete');
       showScreen('screen-lobby');
       document.getElementById('global-leaderboard-btn').classList.remove('hidden');
       updateBalancePill(quizScore);
@@ -342,11 +347,16 @@ function performResultsCountdown(year, myData) {
 
 // --- QUIZ LOGIC ---
 function renderQuestion() {
+  isAdvancingQuestion = false;
   if (currentQuestionIndex >= QUIZ_QUESTIONS.length) {
     db.ref(`games/${currentGameCode}/players/${playerId}`).update({ quizFinished: true });
     // show waiting page with specific message
     const codeEl = document.getElementById('lobby-code-display');
     if (codeEl) codeEl.innerText = currentGameCode || '---';
+    const lobbyTitle = document.getElementById('lobby-title');
+    if (lobbyTitle) lobbyTitle.innerText = 'All done!';
+    const lobbyScreen = document.getElementById('screen-lobby');
+    if (lobbyScreen) lobbyScreen.classList.add('lobby-quiz-complete');
     const waitEl = document.getElementById('lobby-waiting-text');
     if (waitEl) waitEl.innerText = 'Coming up: Investing Simulation - waiting for host to begin simulation';
     showScreen('screen-lobby');
@@ -428,8 +438,7 @@ function confirmAnswer() {
 
   db.ref(`games/${currentGameCode}/players/${playerId}`).update({
     quizScore: quizScore,
-    balance: quizScore,
-    quizIndex: currentQuestionIndex + 1
+    balance: quizScore
   });
 
   const fbBox = document.getElementById('quiz-feedback-box');
@@ -444,7 +453,12 @@ function confirmAnswer() {
 }
 
 function nextQuestion() {
+  if (isAdvancingQuestion) return;
+  isAdvancingQuestion = true;
   currentQuestionIndex++;
+  db.ref(`games/${currentGameCode}/players/${playerId}`).update({
+    quizIndex: currentQuestionIndex
+  });
   renderQuestion();
 }
 
@@ -517,7 +531,10 @@ function updateAllocationTotals() {
     ? parseInt(totalCashSpans[0].innerText.replace(/,/g, '').replace(/[^0-9]/g, '')) || 1000
     : 1000;
 
-  const values = getAllocationAmounts(totalCash, allocationPercentages);
+  const percentTotal = ASSET_IDS.reduce((sum, asset) => sum + (allocationPercentages[asset] || 0), 0);
+  const values = percentTotal === 100
+    ? getAllocationAmounts(totalCash, allocationPercentages)
+    : ASSET_IDS.map(asset => getAllocationAmountFromPercent(allocationPercentages[asset] || 0, totalCash));
 
   const total = values.reduce((sum, val) => sum + val, 0);
   const overAllocated = total > totalCash;
@@ -527,8 +544,10 @@ function updateAllocationTotals() {
   if (totalEl) totalEl.innerText = total.toLocaleString();
 
   const summary = document.getElementById('alloc-summary-bar');
+  const totalValueEl = document.getElementById('total-allocated-value');
   const accentColor = overAllocated ? 'var(--red-accent)' : 'var(--green-primary)';
   if (totalEl) totalEl.style.color = accentColor;
+  if (totalValueEl) totalValueEl.style.color = accentColor;
   if (summary) summary.classList.toggle('over-allocated', overAllocated);
 
   values.forEach((value, idx) => {
@@ -549,6 +568,11 @@ function updateAllocationTotals() {
 
 function submitAllocation() {
   const totalCash = parseInt(document.querySelectorAll('.player-total-cash')[0].innerText.replace(/,/g, '')) || 1000;
+  const percentTotal = ASSET_IDS.reduce((sum, asset) => sum + (allocationPercentages[asset] || 0), 0);
+  if (percentTotal !== 100) {
+    alert('Please allocate exactly 100% before submitting.');
+    return;
+  }
   const allocationAmounts = getExactAllocationDistribution(totalCash, allocationPercentages);
   const cash = allocationAmounts.cash;
   const bonds = allocationAmounts.bonds;
@@ -585,7 +609,9 @@ function renderResultsScreen(year, myData) {
 
   const marketBox = document.querySelector('.market-overview-box');
   const personalBox = document.querySelector('.personal-results-box');
-  const totalRow = document.getElementById('results-total-row');
+  const quickSummary = document.getElementById('results-quick-summary');
+  const gainLossEl = document.getElementById('year-gain-loss-total');
+  const detailToggle = document.getElementById('results-detail-toggle');
   const waitingMessage = document.querySelector('.results-waiting-message');
   const actionsRow = document.getElementById('results-actions-row');
   [marketBox, personalBox].forEach(box => {
@@ -594,7 +620,11 @@ function renderResultsScreen(year, myData) {
       box.classList.add('results-section-hidden');
     }
   });
-  if (totalRow) totalRow.classList.add('results-summary-hidden');
+  if (quickSummary) quickSummary.classList.add('results-summary-hidden');
+  if (detailToggle) {
+    detailToggle.classList.add('results-summary-hidden');
+    detailToggle.open = false;
+  }
   if (waitingMessage) waitingMessage.classList.add('results-summary-hidden');
   if (actionsRow) actionsRow.classList.add('results-summary-hidden');
 
@@ -624,6 +654,13 @@ function renderResultsScreen(year, myData) {
       tbody.appendChild(tr);
     });
 
+    const investedTotal = assets.reduce((sum, a) => sum + a.val, 0);
+    const gainLoss = typeof h.gainLoss === 'number' ? h.gainLoss : (h.newBalance - investedTotal);
+    const gainLossSign = gainLoss >= 0 ? '+' : '';
+    if (gainLossEl) {
+      gainLossEl.innerText = `${gainLossSign}£${Math.round(gainLoss).toLocaleString()}`;
+      gainLossEl.style.color = gainLoss >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
+    }
     document.getElementById('new-portfolio-total').innerText = `£${Math.round(h.newBalance).toLocaleString()}`;
   }
 
@@ -639,9 +676,13 @@ function renderResultsScreen(year, myData) {
       personalBox.classList.remove('results-section-hidden');
       personalBox.classList.add('results-section-visible');
     }
-    if (totalRow) {
-      totalRow.classList.remove('results-summary-hidden');
-      totalRow.classList.add('results-summary-visible');
+    if (quickSummary) {
+      quickSummary.classList.remove('results-summary-hidden');
+      quickSummary.classList.add('results-summary-visible');
+    }
+    if (detailToggle) {
+      detailToggle.classList.remove('results-summary-hidden');
+      detailToggle.classList.add('results-summary-visible');
     }
     if (waitingMessage) {
       waitingMessage.classList.remove('results-summary-hidden');
@@ -651,7 +692,7 @@ function renderResultsScreen(year, myData) {
       actionsRow.classList.remove('results-summary-hidden');
       actionsRow.classList.add('results-summary-visible');
     }
-  }, 3000);
+  }, 2000);
 }
 
 // Quick-fill helpers for allocation inputs

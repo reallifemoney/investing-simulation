@@ -87,10 +87,12 @@
 
     <!-- SCREEN 3: PLAYER LOBBY -->
     <div id="screen-lobby" class="card text-center hidden">
-      <h2>You're In!</h2>
-      <p>Game Code: <strong id="lobby-code-display">---</strong></p>
-      <div class="pulse-loader"></div>
-      <p id="lobby-waiting-text">Waiting for the admin to start the game...</p>
+      <div class="lobby-status-block">
+        <h2 id="lobby-title">You're In!</h2>
+        <p>Game Code: <strong id="lobby-code-display">---</strong></p>
+        <div class="pulse-loader"></div>
+        <p id="lobby-waiting-text">Waiting for the admin to start the game...</p>
+      </div>
       <div class="game-journey-card">
         <h3>How the game works</h3>
         <div class="journey-grid">
@@ -136,7 +138,7 @@
         <div class="alloc-summary" id="alloc-summary-bar">
           <div>
             <span class="alloc-summary-label">Total allocated</span>
-            <strong>£<span id="total-allocated-display">0</span></strong> / £<span class="player-total-cash">1000</span>
+            <strong id="total-allocated-value">£<span id="total-allocated-display">0</span></strong> / £<span class="player-total-cash">1000</span>
           </div>
         </div>
 
@@ -209,24 +211,34 @@
       </div>
 
       <div class="personal-results-box">
-        <h3>💰 Your Portfolio Performance</h3>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Asset</th>
-              <th>Invested</th>
-              <th>Return %</th>
-              <th>Gain / Loss</th>
-              <th>End Value</th>
-            </tr>
-          </thead>
-          <tbody id="player-results-table"></tbody>
-        </table>
-        <div id="results-total-row" class="results-total-row results-summary-hidden">
-          <div class="results-total-card">
+        <div id="results-quick-summary" class="results-quick-summary results-summary-hidden">
+          <div class="results-quick-card">
+            <span>Year gain / loss</span>
+            <strong id="year-gain-loss-total">£0</strong>
+          </div>
+          <div class="results-quick-card">
             <span>Your new total</span>
             <strong id="new-portfolio-total">£0</strong>
           </div>
+        </div>
+
+        <details id="results-detail-toggle" class="results-detail results-summary-hidden">
+          <summary>View detail</summary>
+          <div class="table-container mt-15">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Asset</th>
+                  <th>Invested</th>
+                  <th>Return %</th>
+                  <th>Gain / Loss</th>
+                  <th>End Value</th>
+                </tr>
+              </thead>
+              <tbody id="player-results-table"></tbody>
+            </table>
+          </div>
+        </details>
         </div>
       </div>
 
