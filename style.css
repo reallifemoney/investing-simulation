@@ -531,8 +531,11 @@ h1 {
   grid-template-columns: 1fr;
   gap: 10px;
 }
+.results-outcome-block {
+  margin-top: 18px;
+}
 .results-outcome-header {
-  margin: 28px 0 2px;
+  margin: 0 0 2px;
   font-size: 1.1rem;
   font-weight: 700;
   color: #334155;
@@ -566,6 +569,16 @@ h1 {
   cursor: pointer;
   font-weight: 600;
   color: #334155;
+}
+.results-outcome-block.results-summary-hidden,
+.results-outcome-block.results-summary-visible {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 2s ease, transform 2s ease;
+}
+.results-outcome-block.results-summary-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 .results-total-card {
   display: flex;

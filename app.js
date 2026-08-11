@@ -629,7 +629,6 @@ function renderResultsScreen(year, myData) {
     detailToggle.classList.add('results-summary-hidden');
     detailToggle.open = false;
   }
-  if (outcomeHeader) outcomeHeader.classList.add('results-summary-hidden');
   if (waitingMessage) waitingMessage.classList.add('results-summary-hidden');
   if (actionsRow) actionsRow.classList.add('results-summary-hidden');
 
@@ -682,13 +681,14 @@ function renderResultsScreen(year, myData) {
   }, 100);
 
   setTimeout(() => {
+    const outcomeBlock = document.getElementById('results-outcome-block');
+    if (outcomeBlock) {
+      outcomeBlock.classList.remove('results-summary-hidden');
+      outcomeBlock.classList.add('results-summary-visible');
+    }
     if (personalBox) {
       personalBox.classList.remove('results-section-hidden');
       personalBox.classList.add('results-section-visible');
-    }
-    if (outcomeHeader) {
-      outcomeHeader.classList.remove('results-summary-hidden');
-      outcomeHeader.classList.add('results-summary-visible');
     }
     if (quickSummary) {
       quickSummary.classList.remove('results-summary-hidden');
