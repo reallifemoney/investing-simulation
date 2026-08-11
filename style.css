@@ -543,7 +543,7 @@ h1 {
   }
 }
 .results-quick-card {
-  padding: 14px 16px;
+  padding: 5px 16px 14px 16px;
   border-radius: 12px;
   background: linear-gradient(135deg, #f6f8ff, #eef8eb);
   border: 1px solid rgba(140, 82, 255, 0.18);
