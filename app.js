@@ -9,7 +9,6 @@ let pendingOptionIndex = null;
 let quizScore = 1000;
 let answeredQuestions = {}; // track answered questions locally: { [index]: { chosen, isCorrect } }
 let allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
-let lastAllocationAsset = 'equities';
 
 // Game State listener
 let gameRef = null;
@@ -390,7 +389,6 @@ function nextQuestion() {
 // --- ALLOCATION LOGIC ---
 function setupAllocationScreen(year, myData) {
   allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
-  lastAllocationAsset = 'equities';
   const yrSpans = document.querySelectorAll('.current-year-num');
   yrSpans.forEach(s => s.innerText = year);
 
@@ -452,19 +450,7 @@ function renderAllocationOptions() {
 
 function getAllocationAmounts(totalBalance, percentages) {
   const assetIds = ['cash', 'bonds', 'commodities', 'equities'];
-  const exactAmounts = assetIds.map(asset => Math.round((percentages[asset] || 0) / 100 * totalBalance));
-  const total = exactAmounts.reduce((sum, value) => sum + value, 0);
-  const diff = totalBalance - total;
-
-  if (diff !== 0) {
-    const targetAsset = lastAllocationAsset || 'equities';
-    const targetIndex = assetIds.indexOf(targetAsset);
-    if (targetIndex >= 0) {
-      exactAmounts[targetIndex] += diff;
-    }
-  }
-
-  return exactAmounts;
+  return assetIds.map(asset => Math.round((percentages[asset] || 0) / 100 * totalBalance));
 }
 
 function updateAllocationTotals() {
@@ -628,7 +614,6 @@ function setAllocationPercent(assetId, percent) {
   const assetKey = assetId.replace('alloc-', '');
   if (assetKey in allocationPercentages) {
     allocationPercentages[assetKey] = percent;
-    lastAllocationAsset = assetKey;
   }
   const value = getAllocationAmountFromPercent(percent, totalCash);
   const el = document.getElementById(assetId);
