@@ -13,6 +13,7 @@ let allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
 let currentGameState = null;
 let isResultsCountdownActive = false;
 let resultsCountdownYear = null;
+let lastCelebratedResultsYear = null;
 const ASSET_IDS = ['cash', 'bonds', 'commodities', 'equities'];
 
 // Game State listener
@@ -428,6 +429,7 @@ function confirmAnswer() {
   if (isCorrect) {
     if (chosenCard) chosenCard.classList.add('correct');
     quizScore += 100;
+    launchConfettiCannon('center');
   } else {
     if (chosenCard) chosenCard.classList.add('wrong');
     if (correctCard) correctCard.classList.add('correct');
@@ -596,6 +598,7 @@ function submitAllocation() {
 
 // --- RESULTS & LEADERBOARD LOGIC ---
 function renderResultsScreen(year, myData) {
+  let overallGainLoss = null;
   const returns = YEAR_RETURNS.find(r => r.year === year);
   const mGrid = document.getElementById('market-performance-grid');
   mGrid.innerHTML = '';
@@ -656,6 +659,7 @@ function renderResultsScreen(year, myData) {
 
     const investedTotal = assets.reduce((sum, a) => sum + a.val, 0);
     const gainLoss = typeof h.gainLoss === 'number' ? h.gainLoss : (h.newBalance - investedTotal);
+    overallGainLoss = gainLoss;
     const gainLossSign = gainLoss >= 0 ? '+' : '';
     if (gainLossEl) {
       gainLossEl.innerText = `${gainLossSign}£${Math.round(gainLoss).toLocaleString()}`;
@@ -691,6 +695,10 @@ function renderResultsScreen(year, myData) {
     if (actionsRow) {
       actionsRow.classList.remove('results-summary-hidden');
       actionsRow.classList.add('results-summary-visible');
+    }
+    if (overallGainLoss !== null && overallGainLoss > 0 && lastCelebratedResultsYear !== year) {
+      launchConfettiCannon('sides');
+      lastCelebratedResultsYear = year;
     }
   }, 2000);
 }
@@ -773,6 +781,74 @@ function launchConfetti(){
   for(let i=0;i<120;i++){ pieces.push({x:Math.random()*cvs.width,y:Math.random()*-cvs.height/2,vy:2+Math.random()*6, size:4+Math.random()*8, color:`hsl(${Math.random()*360},80%,60%)`}); }
   let frames = 0;
   function frame(){ ctx.clearRect(0,0,cvs.width,cvs.height); pieces.forEach(p=>{ p.y+=p.vy; ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y,p.size,p.size); }); frames++; if(frames<180) requestAnimationFrame(frame); else cvs.remove(); }
+  frame();
+}
+
+function launchConfettiCannon(mode = 'center') {
+  const cvs = document.createElement('canvas');
+  cvs.className = 'confetti-canvas';
+  document.body.appendChild(cvs);
+  cvs.width = window.innerWidth;
+  cvs.height = window.innerHeight;
+  const ctx = cvs.getContext('2d');
+  const pieces = [];
+
+  const emitters = mode === 'sides'
+    ? [
+        { x: 90, y: cvs.height - 20, vxMin: 2.5, vxMax: 6.2, vyMin: -12, vyMax: -6 },
+        { x: cvs.width - 90, y: cvs.height - 20, vxMin: -6.2, vxMax: -2.5, vyMin: -12, vyMax: -6 }
+      ]
+    : [
+        { x: cvs.width / 2, y: cvs.height - 20, vxMin: -3.6, vxMax: 3.6, vyMin: -12, vyMax: -7 }
+      ];
+
+  emitters.forEach(emitter => {
+    for (let i = 0; i < 80; i++) {
+      pieces.push({
+        x: emitter.x,
+        y: emitter.y,
+        vx: emitter.vxMin + Math.random() * (emitter.vxMax - emitter.vxMin),
+        vy: emitter.vyMin + Math.random() * (emitter.vyMax - emitter.vyMin),
+        g: 0.28 + Math.random() * 0.12,
+        size: 4 + Math.random() * 6,
+        life: 70 + Math.random() * 45,
+        rot: Math.random() * Math.PI,
+        spin: (Math.random() - 0.5) * 0.4,
+        color: `hsl(${Math.random() * 360}, 85%, 58%)`
+      });
+    }
+  });
+
+  function frame() {
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    pieces.forEach(p => {
+      p.vy += p.g;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 1;
+      p.rot += p.spin;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      ctx.restore();
+    });
+
+    for (let i = pieces.length - 1; i >= 0; i--) {
+      if (pieces[i].life <= 0 || pieces[i].y > cvs.height + 40) {
+        pieces.splice(i, 1);
+      }
+    }
+
+    if (pieces.length > 0) {
+      requestAnimationFrame(frame);
+    } else {
+      cvs.remove();
+    }
+  }
+
   frame();
 }
 
