@@ -668,7 +668,7 @@ function renderResultsScreen(year, myData) {
       gainLossEl.style.color = gainLoss >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
     }
     if (outcomeHeader) {
-      outcomeHeader.innerText = gainLoss >= 0 ? 'You made profit this year!' : 'You lost money this year!';
+      outcomeHeader.innerText = gainLoss >= 0 ? 'Woo! Your money grew this year!' : 'Oh no, not such a good year!';
       outcomeHeader.style.color = gainLoss >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
     }
     document.getElementById('new-portfolio-total').innerText = `£${Math.round(h.newBalance).toLocaleString()}`;
