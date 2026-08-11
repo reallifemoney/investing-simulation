@@ -532,10 +532,11 @@ h1 {
   gap: 8px;
 }
 .results-outcome-block {
-  margin-top: 30px;
+  margin-top: 42px;
 }
 .results-outcome-header {
   margin: 0 0 0;
+  padding-top: 12px;
   font-size: 1.1rem;
   font-weight: 700;
   color: #334155;
