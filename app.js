@@ -9,6 +9,9 @@ let pendingOptionIndex = null;
 let quizScore = 1000;
 let answeredQuestions = {}; // track answered questions locally: { [index]: { chosen, isCorrect } }
 let allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
+let currentGameState = null;
+let isResultsCountdownActive = false;
+let resultsCountdownYear = null;
 
 // Game State listener
 let gameRef = null;
@@ -113,6 +116,7 @@ function listenToGameAsAdmin() {
 }
 
 function updateHeaderForState(state) {
+  currentGameState = state;
   const headerEl = document.querySelector('.app-header');
   const logoEl = document.querySelector('.app-logo');
   const pill = document.getElementById('balance-pill');
@@ -219,13 +223,20 @@ function listenToGameAsPlayer() {
 
     // update header visibility based on state
     updateHeaderForState(data.state);
+    if (data.state === 'RESULTS' && resultsCountdownYear !== data.currentYear) {
+      isResultsCountdownActive = true;
+    }
     updateBalancePill(myData ? myData.balance : quizScore);
 
     if (data.state === 'QUIZ') {
+      resultsCountdownYear = null;
+      isResultsCountdownActive = false;
       showScreen('screen-quiz');
       renderQuestion();
       updateBalancePill(myData ? myData.balance : quizScore);
     } else if (data.state === 'ALLOCATING') {
+      resultsCountdownYear = null;
+      isResultsCountdownActive = false;
       showScreen('screen-allocate');
       setupAllocationScreen(data.currentYear, myData);
       updateBalancePill(myData ? myData.balance : quizScore);
@@ -234,6 +245,8 @@ function listenToGameAsPlayer() {
       performResultsCountdown(data.currentYear, myData);
       updateBalancePill(myData ? myData.balance : quizScore);
     } else if (data.state === 'FINAL') {
+      resultsCountdownYear = null;
+      isResultsCountdownActive = false;
       showScreen('screen-final');
       renderFinalLeaderboard(data.players);
       updateBalancePill(myData ? myData.balance : quizScore);
@@ -244,11 +257,18 @@ function listenToGameAsPlayer() {
 }
 
 function performResultsCountdown(year, myData) {
+  if (resultsCountdownYear === year) return;
+  resultsCountdownYear = year;
+  isResultsCountdownActive = true;
+  updateBalancePill(myData ? myData.balance : quizScore);
+
   const overlay = document.getElementById('results-countdown');
   const countEl = document.getElementById('count-number');
   if (!overlay || !countEl) {
+    isResultsCountdownActive = false;
     showScreen('screen-results');
     renderResultsScreen(year, myData);
+    updateBalancePill(myData ? myData.balance : quizScore);
     return;
   }
   overlay.classList.remove('hidden');
@@ -265,6 +285,7 @@ function performResultsCountdown(year, myData) {
     } else {
       clearInterval(tick);
       overlay.classList.add('hidden');
+      isResultsCountdownActive = false;
       // show results screen then animate in sections
       showScreen('screen-results');
       // render results first with elements present but hidden
@@ -274,6 +295,7 @@ function performResultsCountdown(year, myData) {
       const personal = document.querySelector('.personal-results-box');
       if (mGrid) { mGrid.classList.remove('fade-in'); mGrid.classList.add('fade-in-slow'); }
       setTimeout(() => { if (personal) { personal.classList.remove('fade-in'); personal.classList.add('fade-in-slow'); } }, 2000);
+      updateBalancePill(myData ? myData.balance : quizScore);
     }
   }, 900);
 }
@@ -485,7 +507,7 @@ function updateAllocationTotals() {
   const totalEl = document.getElementById('total-allocated-display');
   const remainingEl = document.getElementById('remaining-allocated-display');
   
-  if (totalEl) totalEl.innerText = total.toLocaleString();
+  if (totalEl) totalEl.innerText = `£${total.toLocaleString()}`;
   if (remainingEl) remainingEl.innerText = `£${remaining.toLocaleString()}`;
 
   const summary = remainingEl ? remainingEl.parentElement : null;
@@ -728,7 +750,8 @@ function updateBalancePill(balanceValue) {
   if (!pill || !valueEl) return;
   const displayValue = typeof balanceValue === 'number' ? balanceValue : (quizScore || 1000);
   valueEl.innerText = `£${Math.round(displayValue).toLocaleString()}`;
-  pill.classList.toggle('hidden', !currentGameCode || !playerId);
+  const isLobby = currentGameState === 'LOBBY' || currentGameState === 'HOME';
+  pill.classList.toggle('hidden', !currentGameCode || !playerId || isLobby || isResultsCountdownActive);
 }
 
 function toggleQuizPreviewModal(show) {
