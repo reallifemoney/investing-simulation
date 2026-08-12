@@ -13,7 +13,7 @@ const QUIZ_QUESTIONS = [
   },
   {
     id: 2,
-    question: "What is a Bond?",
+    question: "What is a bond?",
     options: [
       "A commodity",
       "Little piece of a company",
@@ -21,7 +21,7 @@ const QUIZ_QUESTIONS = [
       "A cryptocurrency token"
     ],
     answer: 2,
-    explanation: "A bond is a loan from investors to a government or company, which usually pays interest and then repays the principal."
+    explanation: "A bond is a loan from investors to a government or company, which pays fixed interest each year and then repays the original loan."
   },
   {
     id: 3,
@@ -69,7 +69,7 @@ const QUIZ_QUESTIONS = [
       "Cash in current account"
     ],
     answer: 1,
-    explanation: "Corporate bonds carry credit risk because companies can struggle or default, making them generally riskier than government bonds or cash."
+    explanation: "Corporate bonds are higher risk because companies are more likely to go bust than a Government."
   },
   {
     id: 7,
@@ -81,7 +81,7 @@ const QUIZ_QUESTIONS = [
       "Interest rates fall"
     ],
     answer: 0,
-    explanation: "When interest rates rise, existing bonds with lower coupons become less attractive, so their market prices usually fall."
+    explanation: "When interest rates rise, existing bonds with lower interest become less attractive, so their market prices usually fall."
   },
   {
     id: 8,
@@ -93,7 +93,7 @@ const QUIZ_QUESTIONS = [
       "20-year Government bond"
     ],
     answer: 3,
-    explanation: "Longer-duration bonds are more sensitive to rate rises, so a 20-year government bond is usually hit hardest."
+    explanation: "Longer-duration bonds are more sensitive to rate rises, so a 20-year Government bond is usually hit hardest."
   }
 ];
 
