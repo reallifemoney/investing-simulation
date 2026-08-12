@@ -972,10 +972,10 @@ function renderFinalLeaderboard(playersObj) {
 
 // Asset summary modal helpers
 const ASSET_SUMMARIES = {
-  cash: { title: 'Cash', risk: 'Low', range: '0-5% typical', use: 'Short-term savings, liquidity and capital preservation.' },
-  bonds: { title: 'Bonds', risk: 'Low-Medium', range: '-5% to 15% (historical per year)', use: 'Income generation and portfolio stability.' },
-  commodities: { title: 'Commodities', risk: 'High', range: '-20% to 30%+', use: 'Inflation hedge and diversification; volatile.' },
-  equities: { title: 'Equities (Stocks)', risk: 'High', range: '-50% to 40%+ per year', use: 'Long-term growth potential; higher volatility.' }
+  cash: { title: 'Cash', risk: 'Very low', range: '1-5%', use: 'Short-term savings, reduce risk' },
+  bonds: { title: 'Bonds', risk: 'Medium', range: '-10% to 15%', use: 'Stability and secure returns' },
+  commodities: { title: 'Commodities', risk: 'Very high', range: '-50% to +50%', use: 'Diversifies your portfolio' },
+  equities: { title: 'Equities (Stocks)', risk: 'High', range: '-40% to +40%', use: 'Build long-term wealth' }
 };
 
 function toggleAssetSummary(show, key) {
