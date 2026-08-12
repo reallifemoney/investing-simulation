@@ -8,7 +8,8 @@ const QUIZ_QUESTIONS = [
       "A guaranteed high-interest savings account",
       "A physical commodity like gold or oil"
     ],
-    answer: 1
+    answer: 1,
+    explanation: "A stock (equity) means you own a small share of a company, so your return depends on how that company performs."
   },
   {
     id: 2,
@@ -19,7 +20,8 @@ const QUIZ_QUESTIONS = [
       "An IOU / loan made to a government or company",
       "A cryptocurrency token"
     ],
-    answer: 2
+    answer: 2,
+    explanation: "A bond is a loan from investors to a government or company, which usually pays interest and then repays the principal."
   },
   {
     id: 3,
@@ -30,7 +32,8 @@ const QUIZ_QUESTIONS = [
       "Crude oil and gold",
       "Cash in a bank account"
     ],
-    answer: 2
+    answer: 2,
+    explanation: "Commodities are raw materials like oil, metals, and agricultural products that are traded in global markets."
   },
   {
     id: 4,
@@ -41,7 +44,8 @@ const QUIZ_QUESTIONS = [
       "To obtain voting rights in corporate decisions",
       "To avoid paying any taxes"
     ],
-    answer: 0
+    answer: 0,
+    explanation: "Many investors use bonds for steadier income and to reduce portfolio volatility compared with equities."
   },
   {
     id: 5,
@@ -52,7 +56,8 @@ const QUIZ_QUESTIONS = [
       "Stocks are less risky than cash",
       "Cash loses all value immediately"
     ],
-    answer: 1
+    answer: 1,
+    explanation: "Stocks usually have higher long-term growth potential than cash, but they also have larger short-term price swings."
   },
   {
     id: 6,
@@ -63,7 +68,8 @@ const QUIZ_QUESTIONS = [
       "Government bond",
       "Cash in current account"
     ],
-    answer: 1
+    answer: 1,
+    explanation: "Corporate bonds carry credit risk because companies can struggle or default, making them generally riskier than government bonds or cash."
   },
   {
     id: 7,
@@ -74,7 +80,8 @@ const QUIZ_QUESTIONS = [
       "Recession",
       "Interest rates fall"
     ],
-    answer: 0
+    answer: 0,
+    explanation: "When interest rates rise, existing bonds with lower coupons become less attractive, so their market prices usually fall."
   },
   {
     id: 8,
@@ -85,7 +92,8 @@ const QUIZ_QUESTIONS = [
       "10-year Government bond",
       "20-year Government bond"
     ],
-    answer: 3
+    answer: 3,
+    explanation: "Longer-duration bonds are more sensitive to rate rises, so a 20-year government bond is usually hit hardest."
   }
 ];
 

@@ -104,6 +104,8 @@ body {
 .results-section-visible { opacity: 1; transform: translateY(0); transition: opacity 2s ease, transform 2s ease; }
 .results-summary-hidden { opacity: 0; transform: translateY(10px); }
 .results-summary-visible { opacity: 1; transform: translateY(0); transition: opacity 2s ease, transform 2s ease; }
+.results-header-hidden { opacity: 0; transform: translateY(8px); }
+.results-header-visible { opacity: 1; transform: translateY(0); transition: opacity 1.2s ease, transform 1.2s ease; }
 
 h1 {
   font-size: 1.8rem;

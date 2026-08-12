@@ -10,6 +10,7 @@ let isAdvancingQuestion = false;
 let quizScore = 1000;
 let answeredQuestions = {}; // track answered questions locally: { [index]: { chosen, isCorrect } }
 let allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
+let allocationDraftsByYear = {}; // preserve in-progress allocation picks per year until submitted
 let currentGameState = null;
 let isResultsCountdownActive = false;
 let resultsCountdownYear = null;
@@ -396,11 +397,19 @@ function renderQuestion() {
   if (answered) {
     const fbBox = document.getElementById('quiz-feedback-box');
     fbBox.classList.remove('hidden');
-    document.getElementById('quiz-feedback-text').innerHTML = answered.isCorrect
-      ? `<strong style="color:var(--green-primary)">Correct! +£100 added to your funds.</strong>`
-      : `<strong style="color:var(--red-accent)">Incorrect. No funds added for this question.</strong>`;
+    document.getElementById('quiz-feedback-text').innerHTML = buildQuizFeedbackHtml(q, answered.isCorrect);
     document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString()}`;
   }
+}
+
+function buildQuizFeedbackHtml(question, isCorrect) {
+  const topLine = isCorrect
+    ? `<strong style="color:var(--green-primary)">Correct! +£100 added to your funds.</strong>`
+    : `<strong style="color:var(--red-accent)">Incorrect. No funds added for this question.</strong>`;
+  const explanation = question && question.explanation
+    ? `<p style="margin-top:8px;">${question.explanation}</p>`
+    : '';
+  return `${topLine}${explanation}`;
 }
 
 function openConfirmModal(optIdx) {
@@ -445,9 +454,7 @@ function confirmAnswer() {
 
   const fbBox = document.getElementById('quiz-feedback-box');
   fbBox.classList.remove('hidden');
-  document.getElementById('quiz-feedback-text').innerHTML = isCorrect
-    ? `<strong style="color:var(--green-primary)">Correct! +£100 added to your funds.</strong>`
-    : `<strong style="color:var(--red-accent)">Incorrect. No funds added for this question.</strong>`;
+  document.getElementById('quiz-feedback-text').innerHTML = buildQuizFeedbackHtml(q, isCorrect);
 
   // Ensure currency formatting shows commas
   document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString()}`;
@@ -466,7 +473,7 @@ function nextQuestion() {
 
 // --- ALLOCATION LOGIC ---
 function setupAllocationScreen(year, myData) {
-  allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
+  const defaultPercents = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
   const yrSpans = document.querySelectorAll('.current-year-num');
   yrSpans.forEach(s => s.innerText = year);
 
@@ -477,6 +484,19 @@ function setupAllocationScreen(year, myData) {
   const isAlreadySubmitted = myData && myData.allocations && myData.allocations['year' + year];
   const existingAlloc = isAlreadySubmitted ? myData.allocations['year' + year] : null;
 
+  // Preserve in-progress local choices across realtime updates from other players.
+  if (isAlreadySubmitted && existingAlloc) {
+    const submittedPercentages = {};
+    ASSET_IDS.forEach(asset => {
+      submittedPercentages[asset] = Math.round(((existingAlloc[asset] || 0) / totalCash) * 100);
+    });
+    allocationPercentages = submittedPercentages;
+  } else if (allocationDraftsByYear[year]) {
+    allocationPercentages = { ...allocationDraftsByYear[year] };
+  } else {
+    allocationPercentages = { ...defaultPercents };
+  }
+
   renderAllocationOptions();
 
   ASSET_IDS.forEach(asset => {
@@ -485,14 +505,6 @@ function setupAllocationScreen(year, myData) {
       el.value = existingAlloc ? (existingAlloc[asset] || 0) : 0;
     }
   });
-
-  if (existingAlloc) {
-    const updatedPercentages = {};
-    ASSET_IDS.forEach(asset => {
-      updatedPercentages[asset] = Math.round(((existingAlloc[asset] || 0) / totalCash) * 100);
-    });
-    allocationPercentages = updatedPercentages;
-  }
 
   updateAllocationTotals();
   renderAllocationSubmissionState(!!isAlreadySubmitted, existingAlloc, totalCash);
@@ -591,6 +603,7 @@ function submitAllocation() {
     db.ref(`games/${currentGameCode}/players/${playerId}/allocations/year${yr}`).set({
       cash, bonds, commodities, equities
     }).then(() => {
+      delete allocationDraftsByYear[yr];
       renderAllocationSubmissionState(true, allocationAmounts, totalCash);
     });
   });
@@ -618,6 +631,7 @@ function renderResultsScreen(year, myData) {
   const positionEl = document.getElementById('current-position-value');
   const totalGainLossEl = document.getElementById('total-gain-loss-value');
   const detailToggle = document.getElementById('results-detail-toggle');
+  const outcomeBlock = document.getElementById('results-outcome-block');
   const waitingMessage = document.querySelector('.results-waiting-message');
   const actionsRow = document.getElementById('results-actions-row');
 
@@ -636,6 +650,14 @@ function renderResultsScreen(year, myData) {
   if (detailToggle) {
     detailToggle.classList.add('results-summary-hidden');
     detailToggle.open = false;
+  }
+  if (outcomeBlock) {
+    outcomeBlock.classList.remove('results-summary-visible');
+    outcomeBlock.classList.add('results-summary-hidden');
+  }
+  if (outcomeHeader) {
+    outcomeHeader.classList.remove('results-header-visible');
+    outcomeHeader.classList.add('results-header-hidden');
   }
   if (waitingMessage) waitingMessage.classList.add('results-summary-hidden');
   if (actionsRow) actionsRow.classList.add('results-summary-hidden');
@@ -708,11 +730,17 @@ function renderResultsScreen(year, myData) {
   }, 100);
 
   setTimeout(() => {
-    const outcomeBlock = document.getElementById('results-outcome-block');
     if (outcomeBlock) {
       outcomeBlock.classList.remove('results-summary-hidden');
       outcomeBlock.classList.add('results-summary-visible');
     }
+    if (outcomeHeader) {
+      outcomeHeader.classList.remove('results-header-hidden');
+      outcomeHeader.classList.add('results-header-visible');
+    }
+  }, 1200);
+
+  setTimeout(() => {
     if (personalBox) {
       personalBox.classList.remove('results-section-hidden');
       personalBox.classList.add('results-section-visible');
@@ -737,7 +765,7 @@ function renderResultsScreen(year, myData) {
       launchConfettiCannon('sides');
       lastCelebratedResultsYear = year;
     }
-  }, 2000);
+  }, 2300);
 }
 
 function formatOrdinal(position) {
@@ -756,6 +784,13 @@ function setAllocationPercent(assetId, percent) {
   const assetKey = assetId.replace('alloc-', '');
   if (assetKey in allocationPercentages) {
     allocationPercentages[assetKey] = percent;
+    if (currentGameState === 'ALLOCATING') {
+      const currentYearEl = document.querySelector('.current-year-num');
+      const year = currentYearEl ? parseInt(currentYearEl.innerText, 10) : NaN;
+      if (Number.isInteger(year)) {
+        allocationDraftsByYear[year] = { ...allocationPercentages };
+      }
+    }
   }
   const value = getAllocationAmountFromPercent(percent, totalCash);
   const el = document.getElementById(assetId);
@@ -900,8 +935,28 @@ function launchConfettiCannon(mode = 'center') {
 }
 
 function renderFinalLeaderboard(playersObj) {
-  const list = Object.values(playersObj || {}).sort((a, b) => (b.balance || 0) - (a.balance || 0));
+  const entries = Object.entries(playersObj || {}).sort(([, a], [, b]) => (b.balance || 0) - (a.balance || 0));
+  const list = entries.map(([, p]) => p);
   const container = document.getElementById('final-leaderboard-container');
+  const headingEl = document.getElementById('final-heading');
+  const subheadingEl = document.getElementById('final-subheading');
+
+  const myIndex = entries.findIndex(([id]) => id === playerId);
+  if (headingEl) {
+    if (myIndex === 0) {
+      headingEl.innerText = 'Congratulations! You finished 1st!';
+    } else if (myIndex >= 0) {
+      headingEl.innerText = `You finished ${formatOrdinal(myIndex + 1)}!`;
+    } else {
+      headingEl.innerText = '🎉 Simulation Complete!';
+    }
+  }
+  if (subheadingEl) {
+    subheadingEl.innerText = myIndex === 0
+      ? 'Outstanding result. You won this simulation.'
+      : 'Here are the final standings after 6 market investment years:';
+  }
+
   let html = `<table class="data-table"><thead><tr><th>Rank</th><th>Player</th><th>Balance</th></tr></thead><tbody>`;
 
   list.forEach((p, idx) => {
@@ -959,11 +1014,19 @@ function openPlayerHistory(playerId) {
     let html = `<h4>${p.name}</h4>`;
     html += `<p>Final balance: £${Math.round(p.balance||0).toLocaleString()}</p>`;
     html += `<h5>Allocations & Year History</h5>`;
-    html += `<table class="data-table"><thead><tr><th>Year</th><th>Allocations</th><th>Returns</th><th>End Balance</th></tr></thead><tbody>`;
+    html += `<table class="data-table"><thead><tr><th>Year</th><th>Allocations</th><th>Asset Returns</th><th>Year Gain/Loss</th><th>End Balance</th></tr></thead><tbody>`;
     for (let y=1;y<=6;y++){
       const alloc = p.allocations && p.allocations['year'+y] ? p.allocations['year'+y] : null;
       const hist = p.history && p.history['year'+y] ? p.history['year'+y] : null;
-      html += `<tr><td>${y}</td><td>${alloc? `Cash: £${(alloc.cash||0).toLocaleString()} Bonds: £${(alloc.bonds||0).toLocaleString()} Com: £${(alloc.commodities||0).toLocaleString()} Eq: £${(alloc.equities||0).toLocaleString()}` : '—'}</td><td>${hist? `Cash ${((hist.returns.cash||0)*100).toFixed(1)}%` : '—'}</td><td>${hist? '£'+Math.round(hist.newBalance).toLocaleString() : '—'}</td></tr>`;
+      const allocText = alloc
+        ? `Cash: £${(alloc.cash||0).toLocaleString()} | Bonds: £${(alloc.bonds||0).toLocaleString()} | Commodities: £${(alloc.commodities||0).toLocaleString()} | Equities: £${(alloc.equities||0).toLocaleString()}`
+        : '—';
+      const returnsText = hist
+        ? `Cash ${((hist.returns.cash||0)*100).toFixed(1)}% | Bonds ${((hist.returns.bonds||0)*100).toFixed(1)}% | Commodities ${((hist.returns.commodities||0)*100).toFixed(1)}% | Equities ${((hist.returns.equities||0)*100).toFixed(1)}%`
+        : '—';
+      const gainLoss = hist && typeof hist.gainLoss === 'number' ? hist.gainLoss : null;
+      const gainLossText = gainLoss === null ? '—' : `${gainLoss >= 0 ? '+' : ''}£${Math.round(gainLoss).toLocaleString()}`;
+      html += `<tr><td>${y}</td><td>${allocText}</td><td>${returnsText}</td><td>${gainLossText}</td><td>${hist? '£'+Math.round(hist.newBalance).toLocaleString() : '—'}</td></tr>`;
     }
     html += `</tbody></table>`;
     html += `<p><em>Note: individual quiz answers are not recorded in this session.</em></p>`;
