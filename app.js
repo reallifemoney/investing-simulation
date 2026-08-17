@@ -16,6 +16,13 @@ let isResultsCountdownActive = false;
 let resultsCountdownYear = null;
 let lastCelebratedResultsYear = null;
 const ASSET_IDS = ['cash', 'bonds', 'commodities', 'equities'];
+const ASSET_CHART_COLORS = {
+  cash: '#8c52ff',
+  bonds: '#71c558',
+  commodities: '#f2994a',
+  equities: '#e74c3c'
+};
+const ASSET_CHART_LABELS = { cash: 'Cash', bonds: 'Bonds', commodities: 'Commodities', equities: 'Equities' };
 
 // Game State listener
 let gameRef = null;
@@ -54,6 +61,57 @@ function createGame() {
   });
 
   document.getElementById('admin-game-code').innerText = code;
+  showScreen('screen-admin');
+  document.getElementById('global-leaderboard-btn').classList.remove('hidden');
+  listenToGameAsAdmin();
+}
+
+// --- ADMIN: REJOIN A LIVE GAME ---
+function openLiveGamesModal() {
+  toggleLiveGamesModal(true);
+}
+
+function toggleLiveGamesModal(show) {
+  const modal = document.getElementById('live-games-modal');
+  if (!modal) return;
+  if (!show) {
+    modal.classList.add('hidden');
+    return;
+  }
+  modal.classList.remove('hidden');
+  const body = document.getElementById('live-games-body');
+  body.innerHTML = '<p class="text-center">Loading...</p>';
+
+  db.ref('games').once('value', snapshot => {
+    const games = snapshot.val() || {};
+    const liveEntries = Object.entries(games)
+      .filter(([, g]) => g && g.state !== 'FINAL')
+      .sort(([, a], [, b]) => (b.created || 0) - (a.created || 0));
+
+    if (liveEntries.length === 0) {
+      body.innerHTML = '<p class="text-center">No live games in progress.</p>';
+      return;
+    }
+
+    const items = liveEntries.map(([code, g]) => {
+      const playerCount = g.players ? Object.keys(g.players).length : 0;
+      return `<li>
+        <span><strong>${code}</strong> &middot; ${g.state || 'LOBBY'} &middot; ${playerCount} player${playerCount === 1 ? '' : 's'}</span>
+        <button class="btn btn-purple btn-sm" onclick="rejoinAsAdmin('${code}')">Rejoin as admin</button>
+      </li>`;
+    }).join('');
+
+    body.innerHTML = `<ul class="live-games-list">${items}</ul>`;
+  });
+}
+
+function rejoinAsAdmin(code) {
+  currentGameCode = code;
+  isAdmin = true;
+
+  gameRef = db.ref('games/' + code);
+  document.getElementById('admin-game-code').innerText = code;
+  toggleLiveGamesModal(false);
   showScreen('screen-admin');
   document.getElementById('global-leaderboard-btn').classList.remove('hidden');
   listenToGameAsAdmin();
@@ -303,6 +361,7 @@ function listenToGameAsPlayer() {
       isResultsCountdownActive = false;
       showScreen('screen-final');
       renderFinalLeaderboard(data.players);
+      renderAssetPerformanceChart();
       updateBalancePill(myData ? myData.balance : quizScore);
       // confetti for winner if this client is the winner
       maybeConfettiOnWin(data.players);
@@ -968,6 +1027,58 @@ function renderFinalLeaderboard(playersObj) {
   });
   html += `</tbody></table>`;
   container.innerHTML = html;
+}
+
+function renderAssetPerformanceChart() {
+  const container = document.getElementById('final-asset-chart-container');
+  if (!container) return;
+
+  // Build cumulative growth of £100 per asset class across years 0-6
+  const series = {};
+  ASSET_IDS.forEach(assetId => {
+    let value = 100;
+    const points = [{ year: 0, value }];
+    YEAR_RETURNS.forEach(r => {
+      value = value * (1 + r[assetId]);
+      points.push({ year: r.year, value });
+    });
+    series[assetId] = points;
+  });
+
+  const width = 600;
+  const height = 260;
+  const padding = { top: 16, right: 16, bottom: 28, left: 44 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+
+  const allValues = ASSET_IDS.flatMap(id => series[id].map(p => p.value));
+  const minValue = Math.min(...allValues, 100);
+  const maxValue = Math.max(...allValues, 100);
+  const valueRange = (maxValue - minValue) || 1;
+
+  const xForYear = year => padding.left + (year / 6) * plotWidth;
+  const yForValue = value => padding.top + plotHeight - ((value - minValue) / valueRange) * plotHeight;
+
+  const lines = ASSET_IDS.map(assetId => {
+    const pointsAttr = series[assetId].map(p => `${xForYear(p.year)},${yForValue(p.value)}`).join(' ');
+    return `<polyline points="${pointsAttr}" fill="none" stroke="${ASSET_CHART_COLORS[assetId]}" stroke-width="2.5" />`;
+  }).join('');
+
+  const yearLabels = [0, 1, 2, 3, 4, 5, 6].map(year =>
+    `<text x="${xForYear(year)}" y="${height - 6}" font-size="11" fill="#718096" text-anchor="middle">Yr ${year}</text>`
+  ).join('');
+
+  const legend = ASSET_IDS.map(assetId =>
+    `<span><i style="background:${ASSET_CHART_COLORS[assetId]}"></i>${ASSET_CHART_LABELS[assetId]}</span>`
+  ).join('');
+
+  container.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" width="100%" height="auto" role="img" aria-label="Asset class performance over 6 years">
+      ${lines}
+      ${yearLabels}
+    </svg>
+    <div class="asset-chart-legend">${legend}</div>
+  `;
 }
 
 // Asset summary modal helpers

@@ -647,13 +647,27 @@ h1 {
   border-radius: 16px;
   max-width: 450px;
   width: 90%;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
   text-align: center;
 }
 .modal-large { max-width: 700px; text-align: left; }
-#quiz-preview-modal .modal-content {
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;
+
+.live-games-list { list-style: none; }
+.live-games-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  margin-bottom: 8px;
 }
+
+.asset-chart-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0 4px; font-size: 0.85rem; }
+.asset-chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.asset-chart-legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 .close-btn { font-size: 1.5rem; border: none; background: none; cursor: pointer; }
 .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }

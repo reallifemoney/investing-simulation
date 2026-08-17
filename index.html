@@ -47,6 +47,7 @@
       </div>
       <div class="admin-link-below">
         <button class="btn btn-link" onclick="createGame()">Host as admin</button>
+        <button class="btn btn-link" onclick="openLiveGamesModal()">Rejoin a live game as admin</button>
       </div>
     </div>
 
@@ -268,6 +269,8 @@
       <h2 id="final-heading">🎉 Simulation Complete!</h2>
       <p id="final-subheading">Here are the final standings after 6 market investment years:</p>
       <div id="final-leaderboard-container"></div>
+      <h3 class="mt-15" style="text-align:left">Market performance by asset class</h3>
+      <div id="final-asset-chart-container"></div>
     </div>
 
   </div>
@@ -355,6 +358,20 @@
         <button class="close-btn" onclick="toggleQuizPreviewModal(false)">&times;</button>
       </div>
       <div id="quiz-preview-body"></div>
+    </div>
+  </div>
+
+  <!-- LIVE GAMES (ADMIN REJOIN) MODAL -->
+  <div id="live-games-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>Live Games</h3>
+        <button class="close-btn" onclick="toggleLiveGamesModal(false)">&times;</button>
+      </div>
+      <div id="live-games-body">
+        <p class="text-center">Loading...</p>
+      </div>
+      <div style="text-align:right; margin-top:12px;"><button class="btn btn-gray" onclick="toggleLiveGamesModal(false)">Close</button></div>
     </div>
   </div>
 
