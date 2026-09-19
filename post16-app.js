@@ -21,6 +21,7 @@ let adminContinueReady = true;
 const SECTION_COUNT = QUIZ_SECTIONS_POST16.length;
 const QUESTIONS_PER_SECTION = 4;
 const SPIN_DURATION_MS = 4200;
+const STARTING_BALANCE = 1000;
 
 let gameRef = null;
 
@@ -308,7 +309,7 @@ function joinGame() {
         playerId = dbRoot().child(code).child('players').push().key;
         dbRoot().child(code).child('players').child(playerId).set({
           name: name,
-          balance: 0,
+          balance: STARTING_BALANCE,
           quizIndex: 0,
           quizFinished: false,
           sessionWinnings: 0,
@@ -322,7 +323,7 @@ function joinGame() {
       const lobbyTitle = document.getElementById('lobby-title');
       if (lobbyTitle) lobbyTitle.innerText = "You're In!";
       showScreen('screen-lobby');
-      updateBalancePill();
+      updateBalancePill(existingEntry ? existingEntry[1].balance : STARTING_BALANCE);
 
       listenToGameAsPlayer();
     });
