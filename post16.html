@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Investing Simulation - Post-16</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="post16-style.css">
+  <!-- Firebase Compatibility Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<header class="app-header game-started">
+  <div id="balance-pill" class="balance-pill hidden">
+    <span class="balance-pill-icon">💷</span>
+    <span id="balance-pill-value">£0</span>
+  </div>
+  <img src="/investing-game.png" alt="Logo" class="app-logo app-logo-compact" onerror="this.style.display='none'">
+  <div class="header-actions"></div>
+</header>
+
+  <div class="container">
+
+    <!-- SCREEN 1: HOME / ROLE SELECT -->
+    <div id="screen-home" class="card text-center">
+      <h2>Post-16 Investing Game</h2>
+      <p style="padding-top:10px">Answer quiz questions in short sessions, then bank your winnings or gamble them on the spinner!</p>
+
+      <div class="home-actions">
+        <div class="action-box main-join">
+          <input type="text" id="player-name-input" placeholder="Your name" class="input-field">
+          <input type="text" id="join-code-input" placeholder="Game code (Eg. ABCD)" class="input-field" maxlength="4" autocapitalize="characters" autocomplete="off" spellcheck="false">
+          <button class="btn btn-green btn-full large-join" onclick="joinGame()">Join game</button>
+        </div>
+      </div>
+      <div class="admin-link-below">
+        <button class="btn btn-link" onclick="createGame()">Host as admin</button>
+        <button class="btn btn-link" onclick="openLiveGamesModal()">Rejoin a live game as admin</button>
+      </div>
+      <div class="admin-link-below">
+        <a class="btn btn-link" href="index.html">← Play the original version instead</a>
+      </div>
+    </div>
+
+    <!-- SCREEN 2: ADMIN DASHBOARD -->
+    <div id="screen-admin" class="card hidden">
+      <div class="admin-top">
+        <div>
+          <h2>Admin Control Panel</h2>
+          <p>Game Code: <span id="admin-game-code" class="badge-code">---</span></p>
+        </div>
+        <div class="admin-controls" id="admin-actions"></div>
+      </div>
+
+      <div class="admin-status-bar" id="admin-status-text">Waiting for players to join...</div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Player Name</th>
+              <th>Quiz Progress</th>
+              <th>Session Winnings</th>
+              <th>Current Balance</th>
+              <th>Bank / Gamble</th>
+            </tr>
+          </thead>
+          <tbody id="admin-players-list">
+            <tr><td colspan="5" class="text-center">No players joined yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Admin spinner display: spins in sync with every player's screen -->
+      <div class="spin-screen mt-15" id="admin-wheel-section">
+        <div class="wheel-wrap">
+          <div class="wheel-pointer"></div>
+          <div class="wheel" id="admin-wheel"></div>
+          <div class="wheel-hub"></div>
+        </div>
+        <div id="admin-spin-result-banner" class="spin-result-banner"></div>
+        <div id="admin-spin-status-row" class="spin-status-row"></div>
+      </div>
+    </div>
+
+    <!-- SCREEN 3: PLAYER LOBBY / WAITING -->
+    <div id="screen-lobby" class="card text-center hidden">
+      <div class="lobby-status-block">
+        <h2 id="lobby-title">You're In!</h2>
+        <p>Game Code: <strong id="lobby-code-display">---</strong></p>
+        <div class="pulse-loader"></div>
+        <p id="lobby-waiting-text">Waiting for the host to start the game...</p>
+      </div>
+      <div class="game-journey-card">
+        <h3>How the game works</h3>
+        <div class="journey-grid">
+          <div class="journey-step">
+            <h4>Quiz</h4>
+            <p>Answer 4 questions each session. Correct answers earn £100.</p>
+          </div>
+          <div class="journey-step">
+            <h4>Bank or Gamble</h4>
+            <p>After each session, bank your winnings or gamble them.</p>
+          </div>
+          <div class="journey-step">
+            <h4>Spin</h4>
+            <p>Green doubles your session winnings. Red loses them.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 4: QUIZ PHASE -->
+    <div id="screen-quiz" class="card hidden">
+      <span id="quiz-section-badge" class="section-title-badge">Session 1</span>
+      <div class="quiz-header">
+        <span id="quiz-question-num">Question 1 of 4</span>
+        <span class="quiz-score-badge">Session winnings: <strong id="quiz-cash-display">£0</strong></span>
+      </div>
+
+      <div class="question-container">
+        <h2 id="quiz-question-text">Question loading...</h2>
+        <div class="options-grid" id="quiz-options-container"></div>
+      </div>
+
+      <div id="quiz-feedback-box" class="feedback-box hidden">
+        <div id="quiz-feedback-text"></div>
+        <button id="quiz-next-btn" class="btn btn-purple mt-15" onclick="nextQuestion()">Next Question →</button>
+      </div>
+    </div>
+
+    <!-- SCREEN 5: BANK OR GAMBLE -->
+    <div id="screen-choice" class="card choice-card hidden">
+      <span id="choice-section-badge" class="section-title-badge">Session 1</span>
+      <h2>Bank it or gamble it?</h2>
+      <p class="mt-15">This session you won:</p>
+      <div class="choice-winnings" id="choice-winnings-display">£0</div>
+
+      <div class="choice-actions" id="choice-actions-row">
+        <button class="btn btn-purple" onclick="makeChoice('bank')">🏦 Bank it</button>
+        <button class="btn btn-green" onclick="makeChoice('gamble')">🎲 Gamble it</button>
+      </div>
+
+      <div id="choice-made-banner" class="choice-made-banner hidden"></div>
+    </div>
+
+    <!-- SCREEN 6: SPINNER (PLAYER VIEW) -->
+    <div id="screen-spin" class="card spin-screen hidden">
+      <h2>Watch the host spin!</h2>
+      <div class="wheel-wrap">
+        <div class="wheel-pointer"></div>
+        <div class="wheel" id="wheel"></div>
+        <div class="wheel-hub"></div>
+      </div>
+      <div id="spin-result-banner" class="spin-result-banner"></div>
+      <div id="spin-status-row" class="spin-status-row"></div>
+    </div>
+
+    <!-- SCREEN 7: FINAL LEADERBOARD -->
+    <div id="screen-final" class="card text-center hidden">
+      <h2 id="final-heading">🎉 Game Complete!</h2>
+      <p style="padding-top:20px;">Here are the final standings:</p>
+      <div id="final-leaderboard-container" style="padding-top:20px;"></div>
+    </div>
+
+  </div>
+
+  <!-- CONFIRMATION MODAL FOR QUIZ -->
+  <div id="confirm-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Confirm Answer</h3>
+      <p>Are you sure you want to select: <br><strong id="confirm-option-text">---</strong>?</p>
+      <div class="modal-buttons">
+        <button class="btn btn-gray" onclick="closeConfirmModal()">Cancel</button>
+        <button class="btn btn-purple" onclick="confirmAnswer()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUIZ PREVIEW MODAL -->
+  <div id="quiz-preview-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>📝 Quiz Preview</h3>
+        <button class="close-btn" onclick="toggleQuizPreviewModal(false)">&times;</button>
+      </div>
+      <div id="quiz-preview-body"></div>
+    </div>
+  </div>
+
+  <!-- LIVE GAMES (ADMIN REJOIN) MODAL -->
+  <div id="live-games-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>Live Games</h3>
+        <button class="close-btn" onclick="toggleLiveGamesModal(false)">&times;</button>
+      </div>
+      <div id="live-games-body">
+        <p class="text-center">Loading...</p>
+      </div>
+      <div style="text-align:right; margin-top:12px;"><button class="btn btn-gray" onclick="toggleLiveGamesModal(false)">Close</button></div>
+    </div>
+  </div>
+
+  <script src="firebase-config.js"></script>
+  <script src="post16-data.js"></script>
+  <script src="post16-app.js"></script>
+</body>
+</html>

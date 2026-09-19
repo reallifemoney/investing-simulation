@@ -1,0 +1,137 @@
+/* Post-16 version specific styles (spinner wheel + bank/gamble screen) */
+
+.choice-card {
+  text-align: center;
+  padding: 10px 0 4px;
+}
+
+.choice-winnings {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--green-primary);
+  margin: 10px 0 20px;
+}
+
+.choice-actions {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.choice-actions .btn {
+  min-width: 160px;
+  padding: 18px 20px;
+  font-size: 1.05rem;
+}
+
+.choice-made-banner {
+  margin-top: 20px;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--bg-mint);
+  font-weight: 700;
+}
+
+/* --- Spinner Wheel --- */
+.spin-screen {
+  text-align: center;
+}
+
+.wheel-wrap {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  margin: 20px auto 10px;
+}
+
+.wheel-pointer {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 16px solid transparent;
+  border-right: 16px solid transparent;
+  border-top: 26px solid #1e1e1e;
+  z-index: 5;
+}
+
+.wheel {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 6px solid #fff;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+  background: repeating-conic-gradient(
+    #71c558 0deg 45deg,
+    #e74c3c 45deg 90deg
+  );
+  transition: transform 4s cubic-bezier(0.15, 0.85, 0.25, 1);
+  transform: rotate(0deg);
+}
+
+.wheel-hub {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 34px;
+  height: 34px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 4;
+}
+
+.spin-result-banner {
+  margin-top: 22px;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 1.3rem;
+  font-weight: 800;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.spin-result-banner.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.spin-result-banner.result-green {
+  background: rgba(113, 197, 88, 0.14);
+  color: var(--green-primary);
+}
+.spin-result-banner.result-red {
+  background: rgba(231, 76, 60, 0.1);
+  color: var(--red-accent);
+}
+
+.spin-status-row {
+  margin-top: 14px;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.player-choice-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.player-choice-tag.tag-bank { background: rgba(140, 82, 255, 0.12); color: var(--purple-primary); }
+.player-choice-tag.tag-gamble { background: rgba(242, 153, 74, 0.15); color: #d97b1a; }
+.player-choice-tag.tag-pending { background: #edf2f7; color: #64748b; }
+
+.section-title-badge {
+  display: inline-block;
+  background: var(--bg-mint);
+  color: var(--purple-primary);
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
