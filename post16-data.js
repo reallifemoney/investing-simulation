@@ -9,26 +9,37 @@ const QUIZ_SECTIONS_POST16 = [
     title: "Investing Basics & Cash",
     questions: [
       {
-        question: "What does 'investing' mean?",
+        question: "Which best describes 'investing'?",
         options: [
-          "Putting money away where it cannot grow at all",
-          "Committing money now with the expectation of a future financial return",
-          "Spending money on everyday items",
-          "Borrowing money from a bank"
+          "Using money to get rich",
+          "Committing money now with the hope of a future financial return",
+          "Savings in my bank account",
+          "Borrowing money to buy nice things"
         ],
         answer: 1,
         explanation: "Investing means putting money to work today - accepting some risk - in the hope of growing it over time."
       },
       {
-        question: "What is the main advantage of holding cash savings?",
+        question: "What is always a factor when it comes to investing?",
         options: [
-          "It typically offers the highest long-term returns",
-          "It is very low risk and easily accessible",
-          "It guarantees you will beat inflation",
-          "It cannot ever lose real value"
+          "Every investment comes with risk and you could lose money",
+          "The more money you invest the better chance you have of winning",
+          "Investing guarantees you will beat inflation",
+          "Trust someone who promises you will get rich quickly"
         ],
-        answer: 1,
-        explanation: "Cash is one of the safest and most accessible places to keep money, though it usually grows more slowly than other assets."
+        answer: 0,
+        explanation: "All investments carry some level of risk, and this risk is always a factor to consider when investing."
+      },
+      {
+        question: "What is the main benefit of having cash savings?",
+        options: [
+          "It will grow at the same rate as inflation",
+          "Any growth is tax-free",
+          "The Government rewards you for having cash savings",
+          "The value cannot go down so it reduces your overall risk"
+        ],
+        answer: 3,
+        explanation: "Investing in cash savings reduces overall risk because the value cannot go down, providing a safe place to store money."
       },
       {
         question: "What is a key risk of holding too much money in cash long-term?",
@@ -40,17 +51,6 @@ const QUIZ_SECTIONS_POST16 = [
         ],
         answer: 1,
         explanation: "If inflation rises faster than the interest earned on cash, the real value (purchasing power) of that cash falls over time."
-      },
-      {
-        question: "Which of these best describes 'risk vs. reward' in investing?",
-        options: [
-          "Lower risk investments usually offer higher potential returns",
-          "Higher risk investments usually offer the potential for higher returns, but also bigger potential losses",
-          "Risk and reward are unrelated",
-          "All investments carry the exact same risk"
-        ],
-        answer: 1,
-        explanation: "Generally, taking on more risk gives the potential for greater reward, but also the potential for greater loss."
       }
     ]
   },
@@ -80,7 +80,7 @@ const QUIZ_SECTIONS_POST16 = [
         explanation: "Bonds tend to be lower risk than shares and can provide steady interest payments, which appeals to more cautious investors."
       },
       {
-        question: "What generally happens to existing bond prices when interest rates rise?",
+        question: "What generally happens to the value of bonds when interest rates rise?",
         options: [
           "Bond prices rise",
           "Bond prices fall",
@@ -118,15 +118,15 @@ const QUIZ_SECTIONS_POST16 = [
         explanation: "Buying equity means buying a small piece of a company, so your investment's value rises and falls with the company's performance."
       },
       {
-        question: "Which of these is an example of a commodity?",
+        question: "Which of these will best spread our risk?",
         options: [
-          "Shares in a technology company",
-          "A UK government bond",
+          "Shares in 10 companies",
+          "A fund or ETF",
           "Crude oil or gold",
-          "A savings account"
+          "Shares in Apple"
         ],
-        answer: 2,
-        explanation: "Commodities are raw materials or primary goods, such as oil, gold, wheat or other metals, traded on global markets."
+        answer: 1,
+        explanation: "A fund or ETF typically holds a diversified mix of assets, which helps spread and manage risk more effectively than holding a few individual shares."
       },
       {
         question: "Why can equities be considered higher risk than bonds?",
