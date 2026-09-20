@@ -18,12 +18,19 @@ let spinAnimationTimer = null;
 let adminSpinAnimationTimer = null;
 let adminContinueReady = true;
 let allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
+let allocationDraftsByYear = {};
+let currentGameState = null;
+let isResultsCountdownActive = false;
+let resultsCountdownYear = null;
+let lastCelebratedResultsYear = null;
 
 const SECTION_COUNT = QUIZ_SECTIONS_POST16.length;
 const QUESTIONS_PER_SECTION = 4;
 const SPIN_DURATION_MS = 4200;
 const STARTING_BALANCE = 1000;
 const ASSET_IDS = ['cash', 'bonds', 'commodities', 'equities'];
+const ASSET_CHART_COLORS = { cash: '#8c52ff', bonds: '#71c558', commodities: '#f2994a', equities: '#e74c3c' };
+const ASSET_CHART_LABELS = { cash: 'Cash', bonds: 'Bonds', commodities: 'Commodities', equities: 'Equities' };
 
 let gameRef = null;
 
@@ -129,11 +136,16 @@ function listenToGameAsAdmin() {
     const section = data.currentSection || 0;
     const players = data.players || {};
     const playerEntries = Object.entries(players);
+    const simulationYear = data.currentYear || 1;
     const tbody = document.getElementById('admin-players-list');
     tbody.innerHTML = '';
 
     playerEntries.forEach(([pId, p]) => {
       const quizProgress = p.quizFinished ? 'Completed' : `${p.quizIndex || 0}/${QUESTIONS_PER_SECTION}`;
+      const allocation = p.allocations && p.allocations['year' + simulationYear];
+      const yearHistory = p.history && p.history['year' + simulationYear];
+      const gain = yearHistory && typeof yearHistory.gainLoss === 'number' ? yearHistory.gainLoss : null;
+      const gainText = gain === null ? '—' : `${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString()}`;
       const choiceTag = data.state === 'CHOICE' || data.state === 'SPINNING'
         ? (p.choice === 'bank' ? '<span class="player-choice-tag tag-bank">Banked</span>'
           : p.choice === 'gamble' ? '<span class="player-choice-tag tag-gamble">Gambling</span>'
@@ -146,6 +158,8 @@ function listenToGameAsAdmin() {
         <td>£${p.sessionWinnings || 0}</td>
         <td><strong>£${Math.round(p.balance || 0).toLocaleString()}</strong></td>
         <td>${choiceTag}</td>
+        <td class="${gain === null ? '' : gain >= 0 ? 'year-gain-positive' : 'year-gain-negative'}">${gainText}</td>
+        <td>${allocation ? '✅ Submitted' : '⏳ Pending'}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -360,6 +374,7 @@ function listenToGameAsPlayer() {
     currentSection = data.currentSection || 0;
     sessionWinnings = myData.sessionWinnings || 0;
     currentQuestionIndex = myData.quizIndex || 0;
+    currentGameState = data.state;
     updateBalancePill(myData.balance);
 
     if (data.state === 'QUIZ') {
@@ -371,21 +386,58 @@ function listenToGameAsPlayer() {
     } else if (data.state === 'SPINNING') {
       showScreen('screen-spin');
       renderSpinScreen(data, myData);
-    } else if (data.state === 'FINAL') {
-      showScreen('screen-final');
-      renderFinalLeaderboard(data.players);
     } else if (data.state === 'LOBBY') {
       showScreen('screen-lobby');
     } else if (data.state === 'SIMULATION_INTRO') {
       setLobbyMessage('Quiz sessions complete!', 'Next, you will learn how the investing simulation works. Then we will play it.');
     } else if (data.state === 'ALLOCATING') {
+      resultsCountdownYear = null;
+      isResultsCountdownActive = false;
       showScreen('screen-allocate');
       setupAllocationScreen(data.currentYear || 1, myData);
     } else if (data.state === 'RESULTS') {
-      showScreen('screen-results');
-      renderResultsScreen(data.currentYear || 1, myData, data.players);
+      performResultsCountdown(data.currentYear || 1, myData);
+    } else if (data.state === 'FINAL') {
+      resultsCountdownYear = null;
+      isResultsCountdownActive = false;
+      showScreen('screen-final');
+      renderFinalLeaderboard(data.players);
+      renderAssetPerformanceChart();
+      maybeConfettiOnWin(data.players);
     }
   });
+}
+
+function performResultsCountdown(year, player) {
+  if (resultsCountdownYear === year) return;
+  resultsCountdownYear = year;
+  isResultsCountdownActive = true;
+  const overlay = document.getElementById('results-countdown');
+  const countEl = document.getElementById('count-number');
+  if (!overlay || !countEl) {
+    isResultsCountdownActive = false;
+    showScreen('screen-results');
+    renderResultsScreen(year, player);
+    return;
+  }
+  overlay.classList.remove('hidden');
+  let count = 3;
+  countEl.innerText = count;
+  const tick = setInterval(() => {
+    count -= 1;
+    if (count > 0) {
+      countEl.innerText = count;
+      countEl.classList.remove('pop');
+      void countEl.offsetWidth;
+      countEl.classList.add('pop');
+    } else {
+      clearInterval(tick);
+      overlay.classList.add('hidden');
+      isResultsCountdownActive = false;
+      showScreen('screen-results');
+      renderResultsScreen(year, player);
+    }
+  }, 900);
 }
 
 // --- QUIZ LOGIC ---
@@ -560,46 +612,64 @@ function adminNextYear(year) {
 
 function setupAllocationScreen(year, player) {
   const total = Math.round(player.balance || STARTING_BALANCE);
-  const existing = player.allocations && player.allocations['year' + year];
-  const yearEls = document.querySelectorAll('.current-year-num');
-  yearEls.forEach(el => { el.innerText = year; });
+  document.querySelectorAll('.current-year-num').forEach(el => { el.innerText = year; });
   document.querySelectorAll('.player-total-cash').forEach(el => { el.innerText = total.toLocaleString(); });
-
-  allocationPercentages = existing
-    ? ASSET_IDS.reduce((values, asset) => ({ ...values, [asset]: Math.round(((existing[asset] || 0) / total) * 100) }), {})
-    : { cash: 0, bonds: 0, commodities: 0, equities: 0 };
-  renderAllocationOptions(total);
-
-  const submitted = !!existing;
-  document.getElementById('submit-alloc-btn').classList.toggle('hidden', submitted);
-  document.getElementById('alloc-waiting-message').classList.toggle('hidden', !submitted);
+  const existing = player.allocations && player.allocations['year' + year];
+  if (existing) {
+    allocationPercentages = ASSET_IDS.reduce((values, asset) => {
+      values[asset] = Math.round(((existing[asset] || 0) / total) * 100);
+      return values;
+    }, {});
+  } else if (allocationDraftsByYear[year]) {
+    allocationPercentages = { ...allocationDraftsByYear[year] };
+  } else {
+    allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
+  }
+  renderAllocationOptions();
+  updateAllocationTotals();
+  renderAllocationSubmissionState(!!existing, existing, total);
 }
 
-function renderAllocationOptions(total) {
+function renderAllocationOptions() {
+  const total = parseInt(document.querySelector('.player-total-cash').innerText.replace(/,/g, ''), 10) || STARTING_BALANCE;
   const options = getAllocationPercentOptions();
   ASSET_IDS.forEach(asset => {
     const container = document.getElementById('alloc-options-' + asset);
-    if (!container) return;
-    container.innerHTML = options.map(percent => {
-      const active = allocationPercentages[asset] === percent ? ' active' : '';
-      return `<button class="allocation-pill${active}" type="button" onclick="setAllocationPercent('${asset}', ${percent})"><strong>${percent}%</strong><small>£${getAllocationAmountFromPercent(percent, total).toLocaleString()}</small></button>`;
-    }).join('');
+    const amount = document.getElementById('alloc-amount-' + asset);
+    if (!container || !amount) return;
+    const selected = allocationPercentages[asset] || 0;
+    container.innerHTML = options.map(percent => `<button class="allocation-pill ${selected === percent ? 'active' : ''}" type="button" onclick="setAllocationPercent('alloc-${asset}', ${percent})"><strong>${percent}%</strong><small>£${getAllocationAmountFromPercent(percent, total).toLocaleString()}</small></button>`).join('');
+    amount.innerText = `£${getAllocationAmountFromPercent(selected, total).toLocaleString()}`;
   });
-  updateAllocationTotal(total);
 }
 
-function setAllocationPercent(asset, percent) {
+function setAllocationPercent(assetId, percent) {
+  const asset = assetId.replace('alloc-', '');
   allocationPercentages[asset] = percent;
-  const total = parseInt(document.querySelector('.player-total-cash').innerText.replace(/,/g, ''), 10) || STARTING_BALANCE;
-  renderAllocationOptions(total);
+  const year = parseInt(document.querySelector('.current-year-num').innerText, 10);
+  if (Number.isInteger(year)) allocationDraftsByYear[year] = { ...allocationPercentages };
+  updateAllocationTotals();
 }
 
-function updateAllocationTotal(total) {
+function updateAllocationTotals() {
+  const total = parseInt(document.querySelector('.player-total-cash').innerText.replace(/,/g, ''), 10) || STARTING_BALANCE;
   const percentTotal = ASSET_IDS.reduce((sum, asset) => sum + allocationPercentages[asset], 0);
+  const values = percentTotal === 100
+    ? ASSET_IDS.map(asset => getExactAllocationDistribution(total, allocationPercentages)[asset])
+    : ASSET_IDS.map(asset => getAllocationAmountFromPercent(allocationPercentages[asset], total));
+  const allocated = values.reduce((sum, value) => sum + value, 0);
   const display = document.getElementById('total-allocated-display');
-  if (display) display.innerText = percentTotal === 100
-    ? total.toLocaleString()
-    : ASSET_IDS.reduce((sum, asset) => sum + getAllocationAmountFromPercent(allocationPercentages[asset], total), 0).toLocaleString();
+  const totalValue = document.getElementById('total-allocated-value');
+  const overAllocated = allocated > total;
+  if (display) display.innerText = allocated.toLocaleString();
+  if (display) display.style.color = overAllocated ? 'var(--red-accent)' : 'var(--green-primary)';
+  if (totalValue) totalValue.style.color = overAllocated ? 'var(--red-accent)' : 'var(--green-primary)';
+  document.getElementById('alloc-summary-bar').classList.toggle('over-allocated', overAllocated);
+  values.forEach((value, index) => {
+    const asset = ASSET_IDS[index];
+    document.getElementById('alloc-amount-' + asset).innerText = `£${value.toLocaleString()}`;
+  });
+  renderAllocationOptions();
 }
 
 function submitAllocation() {
@@ -612,7 +682,10 @@ function submitAllocation() {
   const allocation = getExactAllocationDistribution(total, allocationPercentages);
   dbRoot().child(currentGameCode).once('value', snapshot => {
     const year = snapshot.val().currentYear;
-    dbRoot().child(currentGameCode).child('players').child(playerId).child('allocations').child('year' + year).set(allocation);
+    dbRoot().child(currentGameCode).child('players').child(playerId).child('allocations').child('year' + year).set(allocation).then(() => {
+      delete allocationDraftsByYear[year];
+      renderAllocationSubmissionState(true, allocation, total);
+    });
   });
 }
 
@@ -628,7 +701,7 @@ function processYearSimulation(year) {
         : startingBalance;
       updates[`players/${id}/balance`] = endingBalance;
       updates[`players/${id}/history/year${year}`] = {
-        allocation: allocation || { cash: 0, bonds: 0, commodities: 0, equities: 0 },
+        alloc: allocation || { cash: 0, bonds: 0, commodities: 0, equities: 0 },
         returns,
         gainLoss: endingBalance - startingBalance,
         newBalance: endingBalance,
@@ -639,22 +712,61 @@ function processYearSimulation(year) {
   });
 }
 
-function renderResultsScreen(year, player, players) {
+function renderAllocationSubmissionState(isSubmitted, allocation, total) {
+  const submitted = document.getElementById('alloc-submitted-view');
+  const active = document.getElementById('alloc-active-view');
+  if (!isSubmitted) {
+    submitted.classList.add('hidden');
+    active.classList.remove('hidden');
+    return;
+  }
+  const rows = ASSET_IDS.map(asset => `<tr><td>${asset.charAt(0).toUpperCase() + asset.slice(1)}</td><td>£${(allocation[asset] || 0).toLocaleString()}</td></tr>`).join('');
+  document.getElementById('alloc-submitted-summary').innerHTML = `<table class="alloc-submitted-summary-grid"><tbody>${rows}<tr><td><strong>Total allocated</strong></td><td><strong>£${total.toLocaleString()}</strong></td></tr></tbody></table>`;
+  active.classList.add('hidden');
+  submitted.classList.remove('hidden');
+}
+
+function renderResultsScreen(year, player) {
   document.querySelectorAll('.current-year-num').forEach(el => { el.innerText = year; });
   const returns = YEAR_RETURNS.find(item => item.year === year);
   const grid = document.getElementById('market-performance-grid');
-  grid.innerHTML = ASSET_IDS.map(asset => {
-    const value = returns[asset];
-    return `<div class="market-card ${value >= 0 ? 'positive' : 'negative'}">${asset.charAt(0).toUpperCase() + asset.slice(1)}<br><strong>${(value * 100).toFixed(1)}%</strong></div>`;
-  }).join('');
+  grid.innerHTML = [['cash', '💵'], ['bonds', '🏛️'], ['commodities', '📉'], ['equities', '📈']].map(([asset, icon]) => `<div class="market-card ${returns[asset] >= 0 ? 'positive' : 'negative'}">${icon} ${asset.charAt(0).toUpperCase() + asset.slice(1)}<br><strong>${(returns[asset] * 100).toFixed(1)}%</strong></div>`).join('');
   const history = player.history && player.history['year' + year];
-  document.getElementById('new-portfolio-total').innerText = `£${Math.round(player.balance || 0).toLocaleString()}`;
+  const marketBox = document.querySelector('.market-overview-box');
+  const personalBox = document.querySelector('.personal-results-box');
+  const outcomeBlock = document.getElementById('results-outcome-block');
+  const outcomeHeader = document.getElementById('results-outcome-header');
+  const summary = document.getElementById('results-quick-summary');
+  const details = document.getElementById('results-detail-toggle');
+  const waiting = document.querySelector('.results-waiting-message');
+  const actions = document.getElementById('results-actions-row');
+  [marketBox, personalBox].forEach(element => { element.classList.remove('results-section-visible'); element.classList.add('results-section-hidden'); });
+  [outcomeBlock, summary, details, waiting, actions].forEach(element => element.classList.add('results-summary-hidden'));
+  details.open = false;
   const gain = history ? history.gainLoss : 0;
+  const assets = ASSET_IDS.map(asset => ({ name: asset.charAt(0).toUpperCase() + asset.slice(1), value: history.alloc[asset], returnValue: history.returns[asset] }));
+  document.getElementById('player-results-table').innerHTML = assets.map(asset => {
+    const change = asset.value * asset.returnValue;
+    return `<tr><td>${asset.name}</td><td>£${asset.value.toLocaleString()}</td><td style="color:${asset.returnValue >= 0 ? 'var(--green-primary)' : 'var(--red-accent)'}">${(asset.returnValue * 100).toFixed(1)}%</td><td style="color:${change >= 0 ? 'var(--green-primary)' : 'var(--red-accent)'}">£${Math.round(change).toLocaleString()}</td><td>£${Math.round(asset.value + change).toLocaleString()}</td></tr>`;
+  }).join('');
+  document.getElementById('new-portfolio-total').innerText = `£${Math.round(history.newBalance).toLocaleString()}`;
   const gainEl = document.getElementById('year-gain-loss-total');
   gainEl.innerText = `${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString()}`;
   gainEl.style.color = gain >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
-  const rank = Object.entries(players || {}).sort(([, a], [, b]) => (b.balance || 0) - (a.balance || 0)).findIndex(([id]) => id === playerId);
-  document.getElementById('current-position-value').innerText = rank >= 0 ? formatOrdinal(rank + 1) : '--';
+  document.getElementById('total-gain-loss-value').innerText = `${history.newBalance - STARTING_BALANCE >= 0 ? '+' : '-'}£${Math.abs(Math.round(history.newBalance - STARTING_BALANCE)).toLocaleString()}`;
+  outcomeHeader.innerText = gain >= 0 ? 'Woo! Your money grew this year!' : 'Oh no, not such a good year!';
+  outcomeHeader.style.color = gain >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
+  dbRoot().child(currentGameCode).child('players').once('value', snapshot => {
+    const rank = Object.entries(snapshot.val() || {}).sort(([, a], [, b]) => (b.balance || 0) - (a.balance || 0)).findIndex(([id]) => id === playerId);
+    document.getElementById('current-position-value').innerText = rank >= 0 ? formatOrdinal(rank + 1) : '--';
+  });
+  setTimeout(() => { marketBox.classList.replace('results-section-hidden', 'results-section-visible'); }, 100);
+  setTimeout(() => { outcomeBlock.classList.replace('results-summary-hidden', 'results-summary-visible'); }, 1200);
+  setTimeout(() => {
+    personalBox.classList.replace('results-section-hidden', 'results-section-visible');
+    [summary, details, waiting, actions].forEach(element => element.classList.replace('results-summary-hidden', 'results-summary-visible'));
+    if (gain > 0 && lastCelebratedResultsYear !== year) { launchConfettiCannon('sides'); lastCelebratedResultsYear = year; }
+  }, 2300);
 }
 
 // --- SPINNER ---
@@ -795,6 +907,7 @@ function renderFinalLeaderboard(playersObj) {
   const entries = Object.entries(playersObj || {}).sort(([, a], [, b]) => (b.balance || 0) - (a.balance || 0));
   const container = document.getElementById('final-leaderboard-container');
   const headingEl = document.getElementById('final-heading');
+  const subheadingEl = document.getElementById('final-subheading');
 
   const myIndex = entries.findIndex(([id]) => id === playerId);
   if (headingEl) {
@@ -803,8 +916,13 @@ function renderFinalLeaderboard(playersObj) {
     } else if (myIndex >= 0) {
       headingEl.innerText = `You finished ${formatOrdinal(myIndex + 1)}!`;
     } else {
-      headingEl.innerText = '🎉 Game Complete!';
+      headingEl.innerText = '🎉 Simulation Complete!';
     }
+  }
+  if (subheadingEl) {
+    subheadingEl.innerText = myIndex === 0
+      ? 'Outstanding result. You won this simulation.'
+      : 'Here are the final standings after 6 market investment years:';
   }
 
   let html = `<table class="data-table"><thead><tr><th>Rank</th><th>Player</th><th>Balance</th></tr></thead><tbody>`;
@@ -817,6 +935,79 @@ function renderFinalLeaderboard(playersObj) {
   });
   html += `</tbody></table>`;
   if (container) container.innerHTML = html;
+}
+
+function renderAssetPerformanceChart() {
+  const container = document.getElementById('final-asset-chart-container');
+  if (!container) return;
+  const series = {};
+  ASSET_IDS.forEach(asset => {
+    let value = 100;
+    series[asset] = [{ year: 0, value }];
+    YEAR_RETURNS.forEach(returns => {
+      value *= 1 + returns[asset];
+      series[asset].push({ year: returns.year, value });
+    });
+  });
+  const width = 600;
+  const height = 260;
+  const padding = { top: 16, right: 16, bottom: 28, left: 44 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const values = ASSET_IDS.flatMap(asset => series[asset].map(point => point.value));
+  const minimum = Math.min(...values, 100);
+  const maximum = Math.max(...values, 100);
+  const x = year => padding.left + (year / 6) * plotWidth;
+  const y = value => padding.top + plotHeight - ((value - minimum) / ((maximum - minimum) || 1)) * plotHeight;
+  const lines = ASSET_IDS.map(asset => `<polyline points="${series[asset].map(point => `${x(point.year)},${y(point.value)}`).join(' ')}" fill="none" stroke="${ASSET_CHART_COLORS[asset]}" stroke-width="2.5" />`).join('');
+  const labels = [0, 1, 2, 3, 4, 5, 6].map(year => `<text x="${x(year)}" y="${height - 6}" font-size="11" fill="#718096" text-anchor="middle">Yr ${year}</text>`).join('');
+  const legend = ASSET_IDS.map(asset => `<span><i style="background:${ASSET_CHART_COLORS[asset]}"></i>${ASSET_CHART_LABELS[asset]}</span>`).join('');
+  container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" width="100%" height="auto" role="img" aria-label="Asset class performance over 6 years">${lines}${labels}</svg><div class="asset-chart-legend">${legend}</div>`;
+}
+
+const ASSET_SUMMARIES = {
+  cash: { title: 'Cash', risk: 'Very low', range: '1-5%', use: 'Short-term savings, reduce risk' },
+  bonds: { title: 'Bonds', risk: 'Medium', range: '-10% to 15%', use: 'Stability and secure returns' },
+  commodities: { title: 'Commodities', risk: 'Very high', range: '-50% to +50%', use: 'Diversifies your portfolio' },
+  equities: { title: 'Equities (Stocks)', risk: 'High', range: '-40% to +40%', use: 'Build long-term wealth' }
+};
+
+function toggleAssetSummary(show, asset) {
+  const modal = document.getElementById('asset-summary-modal');
+  if (!show) return modal.classList.add('hidden');
+  const summary = ASSET_SUMMARIES[asset];
+  document.getElementById('asset-summary-title').innerText = summary.title;
+  document.getElementById('asset-summary-body').innerHTML = `<p><strong>Risk level:</strong> ${summary.risk}</p><p><strong>Range of annual returns:</strong> ${summary.range}</p><p><strong>Useful for:</strong> ${summary.use}</p>`;
+  modal.classList.remove('hidden');
+}
+
+function openSimulationHistoryModal() {
+  const modal = document.getElementById('simulation-history-modal');
+  dbRoot().child(currentGameCode).child('players').child(playerId).once('value', snapshot => {
+    const player = snapshot.val() || {};
+    let rows = '';
+    for (let year = 1; year <= 6; year++) {
+      const history = player.history && player.history['year' + year];
+      const gain = history && typeof history.gainLoss === 'number' ? history.gainLoss : 0;
+      rows += `<tr><td>${year}</td><td class="${gain >= 0 ? 'year-gain-positive' : 'year-gain-negative'}">${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString()}</td><td>${history ? `£${Math.round(history.newBalance).toLocaleString()}` : '—'}</td></tr>`;
+    }
+    document.getElementById('simulation-history-body').innerHTML = `<table class="data-table"><thead><tr><th>Year</th><th>Gain / Loss</th><th>Total after year</th></tr></thead><tbody>${rows}</tbody></table>`;
+    modal.classList.remove('hidden');
+  });
+}
+
+function toggleSimulationHistoryModal(show) {
+  if (!show) document.getElementById('simulation-history-modal').classList.add('hidden');
+}
+
+function openLeaderboardFromHistory() {
+  toggleSimulationHistoryModal(false);
+  toggleLeaderboardModal(true);
+}
+
+function maybeConfettiOnWin(players) {
+  const top = Object.entries(players || {}).sort(([, a], [, b]) => (b.balance || 0) - (a.balance || 0))[0];
+  if (top && top[0] === playerId) launchConfettiCannon('sides');
 }
 
 function formatOrdinal(position) {
@@ -835,7 +1026,7 @@ function updateBalancePill(balanceValue) {
   if (!pill || !valueEl) return;
   const displayValue = typeof balanceValue === 'number' ? balanceValue : 0;
   valueEl.innerText = `£${Math.round(displayValue).toLocaleString()}`;
-  pill.classList.toggle('hidden', !currentGameCode || !playerId);
+  pill.classList.toggle('hidden', !currentGameCode || !playerId || isResultsCountdownActive);
 }
 
 function updateHeaderForScreen(screenId) {

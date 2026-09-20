@@ -70,10 +70,12 @@
               <th>Session Winnings</th>
               <th>Current Balance</th>
               <th>Bank / Gamble</th>
+              <th id="admin-year-gain-col">Year Gain / Loss</th>
+              <th>Allocations Status</th>
             </tr>
           </thead>
           <tbody id="admin-players-list">
-            <tr><td colspan="5" class="text-center">No players joined yet.</td></tr>
+            <tr><td colspan="7" class="text-center">No players joined yet.</td></tr>
           </tbody>
         </table>
       </div>
@@ -165,38 +167,36 @@
 
     <!-- SCREEN 7: INVESTMENT ALLOCATION -->
     <div id="screen-allocate" class="card hidden">
-      <h2>Investment year <span class="current-year-num">1</span></h2>
-      <p>Allocate your full balance across the four asset classes.</p>
-      <div class="alloc-summary" id="alloc-summary-bar">
-        <span>Total allocated: <strong>£<span id="total-allocated-display">0</span></strong> / £<span class="player-total-cash">1000</span></span>
+      <div id="alloc-active-view">
+        <h2 id="alloc-year-title">Year <span class="current-year-num">1</span></h2>
+        <div class="alloc-summary" id="alloc-summary-bar"><div><span class="alloc-summary-label">Total allocated</span><strong id="total-allocated-value">£<span id="total-allocated-display">0</span></strong> / £<span class="player-total-cash">1000</span></div></div>
+        <div class="allocation-grid">
+          <div class="asset-card"><div class="asset-card-head"><h4>💵 Cash</h4><button class="btn btn-sm" onclick="toggleAssetSummary(true,'cash')">i</button></div><div class="asset-row"><input type="hidden" id="alloc-cash" value="0"><div class="allocation-pill-group" id="alloc-options-cash"></div></div><div class="asset-amount-display" id="alloc-amount-cash">£0</div></div>
+          <div class="asset-card"><div class="asset-card-head"><h4>🏛️ Bonds</h4><button class="btn btn-sm" onclick="toggleAssetSummary(true,'bonds')">i</button></div><div class="asset-row"><input type="hidden" id="alloc-bonds" value="0"><div class="allocation-pill-group" id="alloc-options-bonds"></div></div><div class="asset-amount-display" id="alloc-amount-bonds">£0</div></div>
+          <div class="asset-card"><div class="asset-card-head"><h4>📉 Commodities</h4><button class="btn btn-sm" onclick="toggleAssetSummary(true,'commodities')">i</button></div><div class="asset-row"><input type="hidden" id="alloc-commodities" value="0"><div class="allocation-pill-group" id="alloc-options-commodities"></div></div><div class="asset-amount-display" id="alloc-amount-commodities">£0</div></div>
+          <div class="asset-card"><div class="asset-card-head"><h4>📈 Equities</h4><button class="btn btn-sm" onclick="toggleAssetSummary(true,'equities')">i</button></div><div class="asset-row"><input type="hidden" id="alloc-equities" value="0"><div class="allocation-pill-group" id="alloc-options-equities"></div></div><div class="asset-amount-display" id="alloc-amount-equities">£0</div></div>
+        </div>
+        <button id="submit-alloc-btn" class="btn btn-green btn-full mt-15" onclick="submitAllocation()">Submit Allocation</button>
       </div>
-      <div class="allocation-grid">
-        <div class="asset-card"><div class="asset-card-head"><h4>Cash</h4></div><input type="hidden" id="alloc-cash"><div class="allocation-pill-group" id="alloc-options-cash"></div><div class="asset-amount-display" id="alloc-amount-cash">£0</div></div>
-        <div class="asset-card"><div class="asset-card-head"><h4>Bonds</h4></div><input type="hidden" id="alloc-bonds"><div class="allocation-pill-group" id="alloc-options-bonds"></div><div class="asset-amount-display" id="alloc-amount-bonds">£0</div></div>
-        <div class="asset-card"><div class="asset-card-head"><h4>Commodities</h4></div><input type="hidden" id="alloc-commodities"><div class="allocation-pill-group" id="alloc-options-commodities"></div><div class="asset-amount-display" id="alloc-amount-commodities">£0</div></div>
-        <div class="asset-card"><div class="asset-card-head"><h4>Equities</h4></div><input type="hidden" id="alloc-equities"><div class="allocation-pill-group" id="alloc-options-equities"></div><div class="asset-amount-display" id="alloc-amount-equities">£0</div></div>
-      </div>
-      <button id="submit-alloc-btn" class="btn btn-green btn-full mt-15" onclick="submitAllocation()">Submit allocation</button>
-      <p id="alloc-waiting-message" class="text-center mt-15 hidden">Allocation submitted. Waiting for the host to simulate this year.</p>
+      <div id="alloc-submitted-view" class="alloc-submitted-view hidden"><div class="pulse-loader"></div><p class="alloc-submitted-message">Waiting for Year <span class="current-year-num">1</span> results...</p><div class="alloc-submitted-card"><h4>Your chosen investments</h4><div id="alloc-submitted-summary"></div></div></div>
     </div>
 
-    <!-- SCREEN 8: INVESTMENT RESULTS -->
+    <!-- SCREEN 8: YEAR RESULTS -->
     <div id="screen-results" class="card hidden">
-      <h2>Year <span class="current-year-num">1</span> results</h2>
-      <div class="market-grid" id="market-performance-grid"></div>
-      <div class="results-quick-summary" id="results-quick-summary">
-        <div class="results-quick-card"><span>Your new total</span><strong id="new-portfolio-total">£0</strong></div>
-        <div class="results-quick-card"><span>Year gain / loss</span><strong id="year-gain-loss-total">£0</strong></div>
-        <div class="results-quick-card"><span>Position</span><strong id="current-position-value">--</strong></div>
-      </div>
-      <p class="text-center mt-15">Waiting for the host to move to the next investment year.</p>
+      <h2>Year <span class="current-year-num">1</span> Results</h2>
+      <div class="market-overview-box"><div class="market-grid" id="market-performance-grid"></div></div>
+      <div id="results-outcome-block" class="results-summary-hidden"><h3 id="results-outcome-header" class="results-outcome-header"></h3><div class="personal-results-box"><div id="results-quick-summary" class="results-quick-summary"><div class="results-quick-card"><span>Your new total</span><strong id="new-portfolio-total">£0</strong></div><div class="results-quick-card"><span>Year gain / loss</span><strong id="year-gain-loss-total">£0</strong></div><div class="results-quick-card"><span>Position</span><strong id="current-position-value">--</strong></div><div class="results-quick-card"><span>Total gain / loss</span><strong id="total-gain-loss-value">£0</strong></div></div><details id="results-detail-toggle" class="results-detail results-summary-hidden"><summary>View more detail</summary><div class="table-container mt-15"><table class="data-table"><thead><tr><th>Asset</th><th>Invested</th><th>Return %</th><th>Gain / Loss</th><th>End Value</th></tr></thead><tbody id="player-results-table"></tbody></table></div></details></div></div>
+      <div class="results-actions results-summary-hidden" id="results-actions-row"><button class="btn btn-gray" onclick="openSimulationHistoryModal()">View history</button><button class="btn btn-purple" onclick="toggleLeaderboardModal(true)">View leaderboard</button></div>
+      <div class="text-center mt-15 results-summary-hidden results-waiting-message"><p>⏳ waiting for host to move to next round...</p></div>
     </div>
 
     <!-- SCREEN 9: FINAL LEADERBOARD -->
     <div id="screen-final" class="card text-center hidden">
-      <h2 id="final-heading">🎉 Game Complete!</h2>
-      <p style="padding-top:20px;">Here are the final standings:</p>
+      <h2 id="final-heading">🎉 Simulation Complete!</h2>
+      <p id="final-subheading" style="padding-top:20px;">Here are the final standings after 6 market investment years:</p>
       <div id="final-leaderboard-container" style="padding-top:20px;"></div>
+      <h3 class="mt-15" style="text-align:left;padding-top:50px;">Market performance by asset class</h3>
+      <div id="final-asset-chart-container"></div>
     </div>
 
   </div>
@@ -222,6 +222,12 @@
       <div id="leaderboard-modal-body"><p class="text-center">Loading leaderboard...</p></div>
     </div>
   </div>
+
+  <div id="simulation-history-modal" class="modal hidden"><div class="modal-content modal-large"><div class="modal-header"><h3>Simulation History</h3><button class="close-btn" onclick="toggleSimulationHistoryModal(false)">&times;</button></div><div id="simulation-history-body"><p class="text-center">Loading...</p></div><div class="simulation-history-actions"><button class="btn btn-gray" onclick="toggleSimulationHistoryModal(false)">Close</button><button class="btn btn-purple" onclick="openLeaderboardFromHistory()">View leaderboard</button></div></div></div>
+
+  <div id="asset-summary-modal" class="modal hidden"><div class="modal-content modal-large"><div class="modal-header"><h3 id="asset-summary-title">Asset Summary</h3><button class="close-btn" onclick="toggleAssetSummary(false)">&times;</button></div><div id="asset-summary-body"><p>Loading...</p></div><div style="text-align:right; margin-top:12px;"><button class="btn btn-gray" onclick="toggleAssetSummary(false)">Close</button></div></div></div>
+
+  <div id="results-countdown" class="countdown-overlay hidden"><div id="count-number" class="countdown-number">3</div></div>
 
   <!-- QUIZ PREVIEW MODAL -->
   <div id="quiz-preview-modal" class="modal hidden">
