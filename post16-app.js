@@ -164,7 +164,8 @@ function listenToGameAsAdmin() {
     } else if (data.state === 'CHOICE') {
       const decidedCount = Object.values(players).filter(p => p.choice).length;
       statusText.innerText = `Waiting on players to bank or gamble (${decidedCount}/${playerEntries.length} decided).`;
-      actionsDiv.innerHTML = `<button class="btn btn-green" onclick="adminSpin()">🎡 Spin the Wheel</button>`;
+      const allDecided = playerEntries.length > 0 && decidedCount === playerEntries.length;
+      actionsDiv.innerHTML = `<button class="btn btn-green" onclick="adminSpin()" ${allDecided ? '' : 'disabled'}>Spin the Wheel</button>`;
     } else if (data.state === 'SPINNING') {
       const isLast = section >= SECTION_COUNT - 1;
       statusText.innerText = `Spinning… result: ${data.spinner && data.spinner.result ? data.spinner.result.toUpperCase() : '—'}`;
@@ -231,6 +232,10 @@ function adminSpin() {
     const data = snapshot.val() || {};
     const section = data.currentSection || 0;
     const players = data.players || {};
+    if (Object.keys(players).length === 0 || Object.values(players).some(player => !player.choice)) {
+      alert('Wait until every player has chosen to bank or gamble.');
+      return;
+    }
     const result = Math.random() < 0.5 ? 'green' : 'red';
     const angle = computeSpinAngle(result);
     const spinId = Date.now();
@@ -389,7 +394,8 @@ function renderQuestion() {
   const questions = QUIZ_SECTIONS_POST16[currentSection].questions;
 
   if (currentQuestionIndex >= questions.length) {
-    dbRoot().child(currentGameCode).child('players').child(playerId).update({ quizFinished: true });
+    dbRoot().child(currentGameCode).child('players').child(playerId).update({ quizFinished: true })
+      .then(openChoiceWhenEveryoneFinished);
     const codeEl = document.getElementById('lobby-code-display');
     if (codeEl) codeEl.innerText = currentGameCode || '---';
     const lobbyTitle = document.getElementById('lobby-title');
@@ -397,7 +403,6 @@ function renderQuestion() {
     const waitEl = document.getElementById('lobby-waiting-text');
     if (waitEl) waitEl.innerText = `You earned £${sessionWinnings} this session. Waiting for the host to reveal Bank or Gamble…`;
     showScreen('screen-lobby');
-    openChoiceWhenEveryoneFinished();
     return;
   }
 
@@ -471,6 +476,7 @@ function confirmAnswer() {
   if (isCorrect) {
     if (chosenCard) chosenCard.classList.add('correct');
     sessionWinnings += 100;
+    launchConfettiCannon();
   } else {
     if (chosenCard) chosenCard.classList.add('wrong');
     if (correctCard) correctCard.classList.add('correct');
@@ -689,11 +695,15 @@ function renderSpinScreen(data, myData, prefix = '') {
     const result = data.spinner.result;
     banner.classList.add('visible', result === 'green' ? 'result-green' : 'result-red');
     const nextStep = (data.currentSection || 0) >= SECTION_COUNT - 1
-      ? ' Next, you will learn how the investing simulation works. Then we will play it.'
+      ? ' Now you will learn how the investing simulation works before your skills are put to the test!'
       : ' Next, you will learn more before the next set of questions.';
     banner.innerText = myData && myData.choice === 'bank'
       ? `${result.toUpperCase()} — your banked winnings are unchanged.`
       : result === 'green' ? 'GREEN — winnings doubled!' : 'RED — session winnings lost!';
+
+    if (myData && myData.choice === 'gamble' && result === 'green') {
+      launchConfettiCannon('sides');
+    }
 
     if (myData) {
       const section = data.currentSection || 0;
@@ -718,6 +728,66 @@ function renderSpinScreen(data, myData, prefix = '') {
   } else {
     spinAnimationTimer = timer;
   }
+}
+
+function launchConfettiCannon(mode = 'center') {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'confetti-canvas';
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  document.body.appendChild(canvas);
+
+  const context = canvas.getContext('2d');
+  const pieces = [];
+  const emitters = mode === 'sides'
+    ? [
+        { x: 90, vxMin: 2.5, vxMax: 6.2 },
+        { x: canvas.width - 90, vxMin: -6.2, vxMax: -2.5 }
+      ]
+    : [{ x: canvas.width / 2, vxMin: -3.6, vxMax: 3.6 }];
+
+  emitters.forEach(emitter => {
+    for (let index = 0; index < 80; index++) {
+      pieces.push({
+        x: emitter.x,
+        y: canvas.height * 0.52,
+        vx: emitter.vxMin + Math.random() * (emitter.vxMax - emitter.vxMin),
+        vy: -12 + Math.random() * 6,
+        gravity: 0.28 + Math.random() * 0.12,
+        size: 4 + Math.random() * 6,
+        life: 70 + Math.random() * 45,
+        rotation: Math.random() * Math.PI,
+        spin: (Math.random() - 0.5) * 0.4,
+        color: `hsl(${Math.random() * 360}, 85%, 58%)`
+      });
+    }
+  });
+
+  function renderFrame() {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(piece => {
+      piece.vy += piece.gravity;
+      piece.x += piece.vx;
+      piece.y += piece.vy;
+      piece.life -= 1;
+      piece.rotation += piece.spin;
+      context.save();
+      context.translate(piece.x, piece.y);
+      context.rotate(piece.rotation);
+      context.fillStyle = piece.color;
+      context.fillRect(-piece.size / 2, -piece.size / 2, piece.size, piece.size);
+      context.restore();
+    });
+
+    for (let index = pieces.length - 1; index >= 0; index--) {
+      if (pieces[index].life <= 0 || pieces[index].y > canvas.height + 40) pieces.splice(index, 1);
+    }
+
+    if (pieces.length) requestAnimationFrame(renderFrame);
+    else canvas.remove();
+  }
+
+  renderFrame();
 }
 
 // --- FINAL LEADERBOARD ---
