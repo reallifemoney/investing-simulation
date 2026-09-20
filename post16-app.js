@@ -518,8 +518,8 @@ function renderChoiceScreen(myData) {
     actionsRow.classList.add('hidden');
     madeBanner.classList.remove('hidden');
     madeBanner.innerText = myData.choice === 'bank'
-      ? `You chose to BANK your £${myData.sessionWinnings || 0}. Watch the host's screen for the spin!`
-      : `You chose to GAMBLE your £${myData.sessionWinnings || 0}. Watch the host's screen for the spin!`;
+      ? `You chose to BANK your £${myData.sessionWinnings || 0}. Get ready for the spin!`
+      : `You chose to GAMBLE your £${myData.sessionWinnings || 0}. Get ready for the spin!`;
   } else {
     actionsRow.classList.remove('hidden');
     madeBanner.classList.add('hidden');
