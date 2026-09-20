@@ -17,21 +17,24 @@ let adminLastSpinId = null;
 let spinAnimationTimer = null;
 let adminSpinAnimationTimer = null;
 let adminContinueReady = true;
+let allocationPercentages = { cash: 0, bonds: 0, commodities: 0, equities: 0 };
 
 const SECTION_COUNT = QUIZ_SECTIONS_POST16.length;
 const QUESTIONS_PER_SECTION = 4;
 const SPIN_DURATION_MS = 4200;
 const STARTING_BALANCE = 1000;
+const ASSET_IDS = ['cash', 'bonds', 'commodities', 'equities'];
 
 let gameRef = null;
 
 // --- SCREEN NAVIGATION ---
 function showScreen(screenId) {
-  const screens = ['screen-home', 'screen-admin', 'screen-lobby', 'screen-quiz', 'screen-choice', 'screen-spin', 'screen-final'];
+  const screens = ['screen-home', 'screen-admin', 'screen-lobby', 'screen-quiz', 'screen-choice', 'screen-spin', 'screen-allocate', 'screen-results', 'screen-final'];
   screens.forEach(id => {
     document.getElementById(id).classList.add('hidden');
   });
   document.getElementById(screenId).classList.remove('hidden');
+  updateHeaderForScreen(screenId);
 }
 
 function generateCode() {
@@ -58,6 +61,7 @@ function createGame() {
     created: Date.now(),
     state: 'LOBBY', // LOBBY, QUIZ, CHOICE, SPINNING, FINAL
     currentSection: 0,
+    currentYear: 1,
     spinner: null,
     players: {}
   });
@@ -156,7 +160,7 @@ function listenToGameAsAdmin() {
     } else if (data.state === 'QUIZ') {
       const finishedCount = Object.values(players).filter(p => p.quizFinished).length;
       statusText.innerText = `Session ${section + 1}: ${sectionTitle} — ${finishedCount}/${playerEntries.length} players finished.`;
-      actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button><button class="btn btn-purple" onclick="adminMoveToChoice()">Reveal Bank or Gamble</button>`;
+      actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button>`;
     } else if (data.state === 'CHOICE') {
       const decidedCount = Object.values(players).filter(p => p.choice).length;
       statusText.innerText = `Waiting on players to bank or gamble (${decidedCount}/${playerEntries.length} decided).`;
@@ -164,7 +168,7 @@ function listenToGameAsAdmin() {
     } else if (data.state === 'SPINNING') {
       const isLast = section >= SECTION_COUNT - 1;
       statusText.innerText = `Spinning… result: ${data.spinner && data.spinner.result ? data.spinner.result.toUpperCase() : '—'}`;
-      const label = isLast ? 'Show Final Leaderboard' : `Continue to Session ${section + 2} Quiz`;
+      const label = isLast ? 'Start Investment Simulation' : `Continue to Session ${section + 2} Quiz`;
       actionsDiv.innerHTML = `<button class="btn btn-purple" id="admin-continue-btn" onclick="adminAdvance()">${label}</button>`;
       // Give players time to watch the spin before admin can advance.
       const btn = document.getElementById('admin-continue-btn');
@@ -172,6 +176,20 @@ function listenToGameAsAdmin() {
         btn.disabled = true;
         btn.innerText = 'Spinning…';
       }
+    } else if (data.state === 'SIMULATION_INTRO') {
+      statusText.innerText = 'The quiz sessions are complete. Explain the investment simulation, then begin Year 1.';
+      actionsDiv.innerHTML = `<button class="btn btn-green" onclick="adminStartSimulation()">Start Year 1 Investment</button>`;
+    } else if (data.state === 'ALLOCATING') {
+      const year = data.currentYear || 1;
+      const submittedCount = Object.values(players).filter(p => p.allocations && p.allocations['year' + year]).length;
+      statusText.innerText = `Year ${year}: ${submittedCount}/${playerEntries.length} allocations submitted.`;
+      actionsDiv.innerHTML = `<button class="btn btn-green" onclick="processYearSimulation(${year})">Simulate Year ${year}</button>`;
+    } else if (data.state === 'RESULTS') {
+      const year = data.currentYear || 1;
+      statusText.innerText = `Year ${year} complete.`;
+      actionsDiv.innerHTML = year < YEAR_RETURNS.length
+        ? `<button class="btn btn-purple" onclick="adminNextYear(${year + 1})">Start Year ${year + 1}</button>`
+        : `<button class="btn btn-green" onclick="gameRef.update({ state: 'FINAL' })">Show Final Leaderboard</button>`;
     } else if (data.state === 'FINAL') {
       statusText.innerText = 'Game completed!';
       actionsDiv.innerHTML = '';
@@ -186,7 +204,7 @@ function listenToGameAsAdmin() {
         const btn = document.getElementById('admin-continue-btn');
         if (btn) {
           btn.disabled = false;
-          btn.innerText = section >= SECTION_COUNT - 1 ? 'Show Final Leaderboard' : `Continue to Session ${section + 2} Quiz`;
+          btn.innerText = section >= SECTION_COUNT - 1 ? 'Start Investment Simulation' : `Continue to Session ${section + 2} Quiz`;
         }
       }, SPIN_DURATION_MS + 300);
     }
@@ -206,10 +224,6 @@ function adminStartSection(sectionIndex) {
     });
     gameRef.update({ ...updates, ...playerUpdates });
   });
-}
-
-function adminMoveToChoice() {
-  gameRef.update({ state: 'CHOICE' });
 }
 
 function adminSpin() {
@@ -254,7 +268,7 @@ function adminAdvance() {
     const data = snapshot.val() || {};
     const section = data.currentSection || 0;
     if (section >= SECTION_COUNT - 1) {
-      gameRef.update({ state: 'FINAL' });
+      gameRef.update({ state: 'SIMULATION_INTRO' });
     } else {
       adminStartSection(section + 1);
     }
@@ -357,6 +371,14 @@ function listenToGameAsPlayer() {
       renderFinalLeaderboard(data.players);
     } else if (data.state === 'LOBBY') {
       showScreen('screen-lobby');
+    } else if (data.state === 'SIMULATION_INTRO') {
+      setLobbyMessage('Quiz sessions complete!', 'Next, you will learn how the investing simulation works. Then we will play it.');
+    } else if (data.state === 'ALLOCATING') {
+      showScreen('screen-allocate');
+      setupAllocationScreen(data.currentYear || 1, myData);
+    } else if (data.state === 'RESULTS') {
+      showScreen('screen-results');
+      renderResultsScreen(data.currentYear || 1, myData, data.players);
     }
   });
 }
@@ -375,6 +397,7 @@ function renderQuestion() {
     const waitEl = document.getElementById('lobby-waiting-text');
     if (waitEl) waitEl.innerText = `You earned £${sessionWinnings} this session. Waiting for the host to reveal Bank or Gamble…`;
     showScreen('screen-lobby');
+    openChoiceWhenEveryoneFinished();
     return;
   }
 
@@ -501,6 +524,133 @@ function makeChoice(choice) {
   dbRoot().child(currentGameCode).child('players').child(playerId).update({ choice });
 }
 
+function openChoiceWhenEveryoneFinished() {
+  const sessionRef = dbRoot().child(currentGameCode);
+  sessionRef.once('value', snapshot => {
+    const data = snapshot.val() || {};
+    const players = Object.values(data.players || {});
+    if (data.state === 'QUIZ' && players.length > 0 && players.every(player => player.quizFinished)) {
+      sessionRef.update({ state: 'CHOICE' });
+    }
+  });
+}
+
+function setLobbyMessage(title, message) {
+  const titleEl = document.getElementById('lobby-title');
+  const messageEl = document.getElementById('lobby-waiting-text');
+  if (titleEl) titleEl.innerText = title;
+  if (messageEl) messageEl.innerText = message;
+  showScreen('screen-lobby');
+}
+
+// --- INVESTMENT SIMULATION ---
+function adminStartSimulation() {
+  gameRef.update({ state: 'ALLOCATING', currentYear: 1 });
+}
+
+function adminNextYear(year) {
+  gameRef.update({ state: 'ALLOCATING', currentYear: year });
+}
+
+function setupAllocationScreen(year, player) {
+  const total = Math.round(player.balance || STARTING_BALANCE);
+  const existing = player.allocations && player.allocations['year' + year];
+  const yearEls = document.querySelectorAll('.current-year-num');
+  yearEls.forEach(el => { el.innerText = year; });
+  document.querySelectorAll('.player-total-cash').forEach(el => { el.innerText = total.toLocaleString(); });
+
+  allocationPercentages = existing
+    ? ASSET_IDS.reduce((values, asset) => ({ ...values, [asset]: Math.round(((existing[asset] || 0) / total) * 100) }), {})
+    : { cash: 0, bonds: 0, commodities: 0, equities: 0 };
+  renderAllocationOptions(total);
+
+  const submitted = !!existing;
+  document.getElementById('submit-alloc-btn').classList.toggle('hidden', submitted);
+  document.getElementById('alloc-waiting-message').classList.toggle('hidden', !submitted);
+}
+
+function renderAllocationOptions(total) {
+  const options = getAllocationPercentOptions();
+  ASSET_IDS.forEach(asset => {
+    const container = document.getElementById('alloc-options-' + asset);
+    if (!container) return;
+    container.innerHTML = options.map(percent => {
+      const active = allocationPercentages[asset] === percent ? ' active' : '';
+      return `<button class="allocation-pill${active}" type="button" onclick="setAllocationPercent('${asset}', ${percent})"><strong>${percent}%</strong><small>£${getAllocationAmountFromPercent(percent, total).toLocaleString()}</small></button>`;
+    }).join('');
+  });
+  updateAllocationTotal(total);
+}
+
+function setAllocationPercent(asset, percent) {
+  allocationPercentages[asset] = percent;
+  const total = parseInt(document.querySelector('.player-total-cash').innerText.replace(/,/g, ''), 10) || STARTING_BALANCE;
+  renderAllocationOptions(total);
+}
+
+function updateAllocationTotal(total) {
+  const percentTotal = ASSET_IDS.reduce((sum, asset) => sum + allocationPercentages[asset], 0);
+  const display = document.getElementById('total-allocated-display');
+  if (display) display.innerText = percentTotal === 100
+    ? total.toLocaleString()
+    : ASSET_IDS.reduce((sum, asset) => sum + getAllocationAmountFromPercent(allocationPercentages[asset], total), 0).toLocaleString();
+}
+
+function submitAllocation() {
+  const percentTotal = ASSET_IDS.reduce((sum, asset) => sum + allocationPercentages[asset], 0);
+  if (percentTotal !== 100) {
+    alert('Please allocate exactly 100% before submitting.');
+    return;
+  }
+  const total = parseInt(document.querySelector('.player-total-cash').innerText.replace(/,/g, ''), 10) || STARTING_BALANCE;
+  const allocation = getExactAllocationDistribution(total, allocationPercentages);
+  dbRoot().child(currentGameCode).once('value', snapshot => {
+    const year = snapshot.val().currentYear;
+    dbRoot().child(currentGameCode).child('players').child(playerId).child('allocations').child('year' + year).set(allocation);
+  });
+}
+
+function processYearSimulation(year) {
+  gameRef.child('players').once('value', snapshot => {
+    const updates = { state: 'RESULTS' };
+    const returns = YEAR_RETURNS.find(item => item.year === year);
+    Object.entries(snapshot.val() || {}).forEach(([id, player]) => {
+      const allocation = player.allocations && player.allocations['year' + year];
+      const startingBalance = player.balance || STARTING_BALANCE;
+      const endingBalance = allocation
+        ? ASSET_IDS.reduce((sum, asset) => sum + (allocation[asset] || 0) * (1 + returns[asset]), 0)
+        : startingBalance;
+      updates[`players/${id}/balance`] = endingBalance;
+      updates[`players/${id}/history/year${year}`] = {
+        allocation: allocation || { cash: 0, bonds: 0, commodities: 0, equities: 0 },
+        returns,
+        gainLoss: endingBalance - startingBalance,
+        newBalance: endingBalance,
+        missedYear: !allocation
+      };
+    });
+    gameRef.update(updates);
+  });
+}
+
+function renderResultsScreen(year, player, players) {
+  document.querySelectorAll('.current-year-num').forEach(el => { el.innerText = year; });
+  const returns = YEAR_RETURNS.find(item => item.year === year);
+  const grid = document.getElementById('market-performance-grid');
+  grid.innerHTML = ASSET_IDS.map(asset => {
+    const value = returns[asset];
+    return `<div class="market-card ${value >= 0 ? 'positive' : 'negative'}">${asset.charAt(0).toUpperCase() + asset.slice(1)}<br><strong>${(value * 100).toFixed(1)}%</strong></div>`;
+  }).join('');
+  const history = player.history && player.history['year' + year];
+  document.getElementById('new-portfolio-total').innerText = `£${Math.round(player.balance || 0).toLocaleString()}`;
+  const gain = history ? history.gainLoss : 0;
+  const gainEl = document.getElementById('year-gain-loss-total');
+  gainEl.innerText = `${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString()}`;
+  gainEl.style.color = gain >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
+  const rank = Object.entries(players || {}).sort(([, a], [, b]) => (b.balance || 0) - (a.balance || 0)).findIndex(([id]) => id === playerId);
+  document.getElementById('current-position-value').innerText = rank >= 0 ? formatOrdinal(rank + 1) : '--';
+}
+
 // --- SPINNER ---
 // prefix distinguishes the admin's wheel elements ('admin-') from the player's ('').
 function renderSpinScreen(data, myData, prefix = '') {
@@ -515,7 +665,9 @@ function renderSpinScreen(data, myData, prefix = '') {
 
   banner.classList.remove('visible', 'result-green', 'result-red');
   banner.innerText = '';
-  statusRow.innerText = 'Spinning… good luck!';
+  statusRow.innerText = myData && myData.choice === 'bank'
+    ? 'Spinning… you banked, so this result cannot change your winnings.'
+    : 'Spinning… good luck!';
 
   wheel.style.transition = 'none';
   wheel.style.transform = 'rotate(0deg)';
@@ -536,7 +688,12 @@ function renderSpinScreen(data, myData, prefix = '') {
   const timer = setTimeout(() => {
     const result = data.spinner.result;
     banner.classList.add('visible', result === 'green' ? 'result-green' : 'result-red');
-    banner.innerText = result === 'green' ? '🟢 GREEN — winnings doubled!' : '🔴 RED — session winnings lost!';
+    const nextStep = (data.currentSection || 0) >= SECTION_COUNT - 1
+      ? ' Next, you will learn how the investing simulation works. Then we will play it.'
+      : ' Next, you will learn more before the next set of questions.';
+    banner.innerText = myData && myData.choice === 'bank'
+      ? `${result.toUpperCase()} — your banked winnings are unchanged.`
+      : result === 'green' ? 'GREEN — winnings doubled!' : 'RED — session winnings lost!';
 
     if (myData) {
       const section = data.currentSection || 0;
@@ -547,7 +704,7 @@ function renderSpinScreen(data, myData, prefix = '') {
           : hist.spinResult === 'green'
             ? `You gambled and WON! £${hist.sessionWinnings} doubled to £${hist.outcome}. New balance: £${Math.round(hist.newBalance).toLocaleString()}.`
             : `You gambled and lost your £${hist.sessionWinnings} winnings this session. New balance: £${Math.round(hist.newBalance).toLocaleString()}.`;
-        statusRow.innerText = outcomeText;
+        statusRow.innerText = outcomeText + nextStep;
       } else {
         statusRow.innerText = 'Waiting for the host to continue…';
       }
@@ -609,6 +766,36 @@ function updateBalancePill(balanceValue) {
   const displayValue = typeof balanceValue === 'number' ? balanceValue : 0;
   valueEl.innerText = `£${Math.round(displayValue).toLocaleString()}`;
   pill.classList.toggle('hidden', !currentGameCode || !playerId);
+}
+
+function updateHeaderForScreen(screenId) {
+  const header = document.querySelector('.app-header');
+  const logo = document.querySelector('.app-logo');
+  const leaderboard = document.getElementById('global-leaderboard-btn');
+  const isHome = screenId === 'screen-home';
+  if (header) header.classList.toggle('game-started', !isHome);
+  if (logo) logo.classList.toggle('hidden', !isHome);
+  if (leaderboard) leaderboard.classList.toggle('hidden', !currentGameCode);
+}
+
+function toggleLeaderboardModal(show) {
+  const modal = document.getElementById('leaderboard-modal');
+  if (!modal) return;
+  if (!show) {
+    modal.classList.add('hidden');
+    return;
+  }
+  modal.classList.remove('hidden');
+  dbRoot().child(currentGameCode).child('players').once('value', snapshot => {
+    const body = document.getElementById('leaderboard-modal-body');
+    if (body) body.innerHTML = buildLeaderboardHtml(snapshot.val());
+  });
+}
+
+function buildLeaderboardHtml(playersObj) {
+  const entries = Object.entries(playersObj || {}).sort(([, a], [, b]) => (b.balance || 0) - (a.balance || 0));
+  const rows = entries.map(([, player], index) => `<tr><td>#${index + 1}</td><td><strong>${player.name}</strong></td><td><strong>£${Math.round(player.balance || 0).toLocaleString()}</strong></td></tr>`).join('');
+  return `<table class="data-table"><thead><tr><th>Rank</th><th>Player</th><th>Balance</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function toggleQuizPreviewModal(show) {

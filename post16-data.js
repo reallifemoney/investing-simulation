@@ -153,3 +153,12 @@ const QUIZ_SECTIONS_POST16 = [
     ]
   }
 ];
+
+const YEAR_RETURNS = [
+  { year: 1, cash: 0.05, bonds: 0.07, commodities: 0.02, equities: 0.26 },
+  { year: 2, cash: 0.04, bonds: 0.09, commodities: 0.16, equities: 0.10 },
+  { year: 3, cash: 0.01, bonds: 0.05, commodities: -0.36, equities: -0.41 },
+  { year: 4, cash: 0.01, bonds: 0.07, commodities: 0.19, equities: 0.27 },
+  { year: 5, cash: 0.01, bonds: 0.06, commodities: 0.17, equities: 0.08 },
+  { year: 6, cash: 0.01, bonds: 0.06, commodities: -0.13, equities: -0.12 }
+];
