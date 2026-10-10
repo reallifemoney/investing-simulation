@@ -145,7 +145,7 @@ function listenToGameAsAdmin() {
       const allocation = p.allocations && p.allocations['year' + simulationYear];
       const yearHistory = p.history && p.history['year' + simulationYear];
       const gain = yearHistory && typeof yearHistory.gainLoss === 'number' ? yearHistory.gainLoss : null;
-      const gainText = gain === null ? '—' : `${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString()}`;
+      const gainText = gain === null ? '—' : `${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString("en-GB")}`;
       const choiceTag = data.state === 'CHOICE' || data.state === 'SPINNING'
         ? (p.choice === 'bank' ? '<span class="player-choice-tag tag-bank">Banked</span>'
           : p.choice === 'gamble' ? '<span class="player-choice-tag tag-gamble">Gambling</span>'
@@ -156,10 +156,14 @@ function listenToGameAsAdmin() {
         <td><strong>${p.name}</strong></td>
         <td>${quizProgress}</td>
         <td>£${p.sessionWinnings || 0}</td>
-        <td><strong>£${Math.round(p.balance || 0).toLocaleString()}</strong></td>
+        <td><strong>£${Math.round(p.balance || 0).toLocaleString("en-GB")}</strong></td>
         <td>${choiceTag}</td>
         <td class="${gain === null ? '' : gain >= 0 ? 'year-gain-positive' : 'year-gain-negative'}">${gainText}</td>
         <td>${allocation ? '✅ Submitted' : '⏳ Pending'}</td>
+        <td>
+          <button class="btn btn-gray btn-sm" onclick="adminEditPlayer('${pId}')">Edit</button>
+          <button class="btn btn-sm" onclick="adminRemovePlayer('${pId}')">Remove</button>
+        </td>
       `;
       tbody.appendChild(tr);
     });
@@ -174,12 +178,11 @@ function listenToGameAsAdmin() {
     } else if (data.state === 'QUIZ') {
       const finishedCount = Object.values(players).filter(p => p.quizFinished).length;
       statusText.innerText = `Session ${section + 1}: ${sectionTitle} — ${finishedCount}/${playerEntries.length} players finished.`;
-      actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button>`;
+      actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button><button class="btn btn-purple" onclick="gameRef.update({ state: 'CHOICE' })">Continue to Bank or Gamble</button>`;
     } else if (data.state === 'CHOICE') {
       const decidedCount = Object.values(players).filter(p => p.choice).length;
       statusText.innerText = `Waiting on players to bank or gamble (${decidedCount}/${playerEntries.length} decided).`;
-      const allDecided = playerEntries.length > 0 && decidedCount === playerEntries.length;
-      actionsDiv.innerHTML = `<button class="btn btn-green" onclick="adminSpin()" ${allDecided ? '' : 'disabled'}>Spin the Wheel</button>`;
+      actionsDiv.innerHTML = `<button class="btn btn-green" onclick="adminSpin()">Spin the Wheel</button>`;
     } else if (data.state === 'SPINNING') {
       const isLast = section >= SECTION_COUNT - 1;
       statusText.innerText = `Spinning… result: ${data.spinner && data.spinner.result ? data.spinner.result.toUpperCase() : '—'}`;
@@ -226,6 +229,22 @@ function listenToGameAsAdmin() {
   });
 }
 
+function adminEditPlayer(pId) {
+  const nameRef = gameRef.child('players').child(pId).child('name');
+  nameRef.once('value', snap => {
+    const newName = prompt('Edit player name:', snap.val() || '');
+    if (newName && newName.trim()) nameRef.set(newName.trim());
+  });
+}
+
+function adminRemovePlayer(pId) {
+  gameRef.child('players').child(pId).child('name').once('value', snap => {
+    if (confirm(`Remove ${snap.val() || 'this player'} from the game?`)) {
+      gameRef.child('players').child(pId).remove();
+    }
+  });
+}
+
 function adminStartSection(sectionIndex) {
   const updates = { state: 'QUIZ', currentSection: sectionIndex, spinner: null };
   gameRef.child('players').once('value', snapshot => {
@@ -246,10 +265,6 @@ function adminSpin() {
     const data = snapshot.val() || {};
     const section = data.currentSection || 0;
     const players = data.players || {};
-    if (Object.keys(players).length === 0 || Object.values(players).some(player => !player.choice)) {
-      alert('Wait until every player has chosen to bank or gamble.');
-      return;
-    }
     const result = Math.random() < 0.5 ? 'green' : 'red';
     const angle = computeSpinAngle(result);
     const spinId = Date.now();
@@ -613,7 +628,7 @@ function adminNextYear(year) {
 function setupAllocationScreen(year, player) {
   const total = Math.round(player.balance || STARTING_BALANCE);
   document.querySelectorAll('.current-year-num').forEach(el => { el.innerText = year; });
-  document.querySelectorAll('.player-total-cash').forEach(el => { el.innerText = total.toLocaleString(); });
+  document.querySelectorAll('.player-total-cash').forEach(el => { el.innerText = total.toLocaleString("en-GB"); });
   const existing = player.allocations && player.allocations['year' + year];
   if (existing) {
     allocationPercentages = ASSET_IDS.reduce((values, asset) => {
@@ -638,8 +653,8 @@ function renderAllocationOptions() {
     const amount = document.getElementById('alloc-amount-' + asset);
     if (!container || !amount) return;
     const selected = allocationPercentages[asset] || 0;
-    container.innerHTML = options.map(percent => `<button class="allocation-pill ${selected === percent ? 'active' : ''}" type="button" onclick="setAllocationPercent('alloc-${asset}', ${percent})"><strong>${percent}%</strong><small>£${getAllocationAmountFromPercent(percent, total).toLocaleString()}</small></button>`).join('');
-    amount.innerText = `£${getAllocationAmountFromPercent(selected, total).toLocaleString()}`;
+    container.innerHTML = options.map(percent => `<button class="allocation-pill ${selected === percent ? 'active' : ''}" type="button" onclick="setAllocationPercent('alloc-${asset}', ${percent})"><strong>${percent}%</strong><small>£${getAllocationAmountFromPercent(percent, total).toLocaleString("en-GB")}</small></button>`).join('');
+    amount.innerText = `£${getAllocationAmountFromPercent(selected, total).toLocaleString("en-GB")}`;
   });
 }
 
@@ -661,13 +676,13 @@ function updateAllocationTotals() {
   const display = document.getElementById('total-allocated-display');
   const totalValue = document.getElementById('total-allocated-value');
   const overAllocated = allocated > total;
-  if (display) display.innerText = allocated.toLocaleString();
+  if (display) display.innerText = allocated.toLocaleString("en-GB");
   if (display) display.style.color = overAllocated ? 'var(--red-accent)' : 'var(--green-primary)';
   if (totalValue) totalValue.style.color = overAllocated ? 'var(--red-accent)' : 'var(--green-primary)';
   document.getElementById('alloc-summary-bar').classList.toggle('over-allocated', overAllocated);
   values.forEach((value, index) => {
     const asset = ASSET_IDS[index];
-    document.getElementById('alloc-amount-' + asset).innerText = `£${value.toLocaleString()}`;
+    document.getElementById('alloc-amount-' + asset).innerText = `£${value.toLocaleString("en-GB")}`;
   });
   renderAllocationOptions();
 }
@@ -720,8 +735,8 @@ function renderAllocationSubmissionState(isSubmitted, allocation, total) {
     active.classList.remove('hidden');
     return;
   }
-  const rows = ASSET_IDS.map(asset => `<tr><td>${asset.charAt(0).toUpperCase() + asset.slice(1)}</td><td>£${(allocation[asset] || 0).toLocaleString()}</td></tr>`).join('');
-  document.getElementById('alloc-submitted-summary').innerHTML = `<table class="alloc-submitted-summary-grid"><tbody>${rows}<tr><td><strong>Total allocated</strong></td><td><strong>£${total.toLocaleString()}</strong></td></tr></tbody></table>`;
+  const rows = ASSET_IDS.map(asset => `<tr><td>${asset.charAt(0).toUpperCase() + asset.slice(1)}</td><td>£${(allocation[asset] || 0).toLocaleString("en-GB")}</td></tr>`).join('');
+  document.getElementById('alloc-submitted-summary').innerHTML = `<table class="alloc-submitted-summary-grid"><tbody>${rows}<tr><td><strong>Total allocated</strong></td><td><strong>£${total.toLocaleString("en-GB")}</strong></td></tr></tbody></table>`;
   active.classList.add('hidden');
   submitted.classList.remove('hidden');
 }
@@ -747,13 +762,13 @@ function renderResultsScreen(year, player) {
   const assets = ASSET_IDS.map(asset => ({ name: asset.charAt(0).toUpperCase() + asset.slice(1), value: history.alloc[asset], returnValue: history.returns[asset] }));
   document.getElementById('player-results-table').innerHTML = assets.map(asset => {
     const change = asset.value * asset.returnValue;
-    return `<tr><td>${asset.name}</td><td>£${asset.value.toLocaleString()}</td><td style="color:${asset.returnValue >= 0 ? 'var(--green-primary)' : 'var(--red-accent)'}">${(asset.returnValue * 100).toFixed(1)}%</td><td style="color:${change >= 0 ? 'var(--green-primary)' : 'var(--red-accent)'}">£${Math.round(change).toLocaleString()}</td><td>£${Math.round(asset.value + change).toLocaleString()}</td></tr>`;
+    return `<tr><td>${asset.name}</td><td>£${asset.value.toLocaleString("en-GB")}</td><td style="color:${asset.returnValue >= 0 ? 'var(--green-primary)' : 'var(--red-accent)'}">${(asset.returnValue * 100).toFixed(1)}%</td><td style="color:${change >= 0 ? 'var(--green-primary)' : 'var(--red-accent)'}">£${Math.round(change).toLocaleString("en-GB")}</td><td>£${Math.round(asset.value + change).toLocaleString("en-GB")}</td></tr>`;
   }).join('');
-  document.getElementById('new-portfolio-total').innerText = `£${Math.round(history.newBalance).toLocaleString()}`;
+  document.getElementById('new-portfolio-total').innerText = `£${Math.round(history.newBalance).toLocaleString("en-GB")}`;
   const gainEl = document.getElementById('year-gain-loss-total');
-  gainEl.innerText = `${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString()}`;
+  gainEl.innerText = `${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString("en-GB")}`;
   gainEl.style.color = gain >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
-  document.getElementById('total-gain-loss-value').innerText = `${history.newBalance - STARTING_BALANCE >= 0 ? '+' : '-'}£${Math.abs(Math.round(history.newBalance - STARTING_BALANCE)).toLocaleString()}`;
+  document.getElementById('total-gain-loss-value').innerText = `${history.newBalance - STARTING_BALANCE >= 0 ? '+' : '-'}£${Math.abs(Math.round(history.newBalance - STARTING_BALANCE)).toLocaleString("en-GB")}`;
   outcomeHeader.innerText = gain >= 0 ? 'Woo! Your money grew this year!' : 'Oh no, not such a good year!';
   outcomeHeader.style.color = gain >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
   dbRoot().child(currentGameCode).child('players').once('value', snapshot => {
@@ -822,10 +837,10 @@ function renderSpinScreen(data, myData, prefix = '') {
       const hist = myData.history && myData.history['section' + section] ? myData.history['section' + section] : null;
       if (hist) {
         const outcomeText = hist.choice === 'bank'
-          ? `You banked £${hist.sessionWinnings}. New balance: £${Math.round(hist.newBalance).toLocaleString()}.`
+          ? `You banked £${hist.sessionWinnings}. New balance: £${Math.round(hist.newBalance).toLocaleString("en-GB")}.`
           : hist.spinResult === 'green'
-            ? `You gambled and WON! £${hist.sessionWinnings} doubled to £${hist.outcome}. New balance: £${Math.round(hist.newBalance).toLocaleString()}.`
-            : `You gambled and lost your £${hist.sessionWinnings} winnings this session. New balance: £${Math.round(hist.newBalance).toLocaleString()}.`;
+            ? `You gambled and WON! £${hist.sessionWinnings} doubled to £${hist.outcome}. New balance: £${Math.round(hist.newBalance).toLocaleString("en-GB")}.`
+            : `You gambled and lost your £${hist.sessionWinnings} winnings this session. New balance: £${Math.round(hist.newBalance).toLocaleString("en-GB")}.`;
         statusRow.innerText = outcomeText + nextStep;
       } else {
         statusRow.innerText = 'Waiting for the host to continue…';
@@ -930,7 +945,7 @@ function renderFinalLeaderboard(playersObj) {
     html += `<tr>
       <td>#${idx + 1}</td>
       <td><strong>${p.name}</strong></td>
-      <td><strong>£${Math.round(p.balance || 0).toLocaleString()}</strong></td>
+      <td><strong>£${Math.round(p.balance || 0).toLocaleString("en-GB")}</strong></td>
     </tr>`;
   });
   html += `</tbody></table>`;
@@ -989,7 +1004,7 @@ function openSimulationHistoryModal() {
     for (let year = 1; year <= 6; year++) {
       const history = player.history && player.history['year' + year];
       const gain = history && typeof history.gainLoss === 'number' ? history.gainLoss : 0;
-      rows += `<tr><td>${year}</td><td class="${gain >= 0 ? 'year-gain-positive' : 'year-gain-negative'}">${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString()}</td><td>${history ? `£${Math.round(history.newBalance).toLocaleString()}` : '—'}</td></tr>`;
+      rows += `<tr><td>${year}</td><td class="${gain >= 0 ? 'year-gain-positive' : 'year-gain-negative'}">${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString("en-GB")}</td><td>${history ? `£${Math.round(history.newBalance).toLocaleString("en-GB")}` : '—'}</td></tr>`;
     }
     document.getElementById('simulation-history-body').innerHTML = `<table class="data-table"><thead><tr><th>Year</th><th>Gain / Loss</th><th>Total after year</th></tr></thead><tbody>${rows}</tbody></table>`;
     modal.classList.remove('hidden');
@@ -1025,7 +1040,7 @@ function updateBalancePill(balanceValue) {
   const valueEl = document.getElementById('balance-pill-value');
   if (!pill || !valueEl) return;
   const displayValue = typeof balanceValue === 'number' ? balanceValue : 0;
-  valueEl.innerText = `£${Math.round(displayValue).toLocaleString()}`;
+  valueEl.innerText = `£${Math.round(displayValue).toLocaleString("en-GB")}`;
   pill.classList.toggle('hidden', !currentGameCode || !playerId || isResultsCountdownActive);
 }
 
@@ -1055,7 +1070,7 @@ function toggleLeaderboardModal(show) {
 
 function buildLeaderboardHtml(playersObj) {
   const entries = Object.entries(playersObj || {}).sort(([, a], [, b]) => (b.balance || 0) - (a.balance || 0));
-  const rows = entries.map(([, player], index) => `<tr><td>#${index + 1}</td><td><strong>${player.name}</strong></td><td><strong>£${Math.round(player.balance || 0).toLocaleString()}</strong></td></tr>`).join('');
+  const rows = entries.map(([, player], index) => `<tr><td>#${index + 1}</td><td><strong>${player.name}</strong></td><td><strong>£${Math.round(player.balance || 0).toLocaleString("en-GB")}</strong></td></tr>`).join('');
   return `<table class="data-table"><thead><tr><th>Rank</th><th>Player</th><th>Balance</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 

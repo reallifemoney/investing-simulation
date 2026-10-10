@@ -138,7 +138,7 @@ function listenToGameAsAdmin() {
       const hist = p.history && p.history['year' + year] ? p.history['year' + year] : null;
       const gainValue = hist && typeof hist.gainLoss === 'number' ? hist.gainLoss : null;
       const gainClass = gainValue === null ? '' : (gainValue >= 0 ? 'year-gain-positive' : 'year-gain-negative');
-      const gainText = gainValue === null ? '—' : `${gainValue >= 0 ? '+' : ''}£${Math.round(gainValue).toLocaleString()}`;
+      const gainText = gainValue === null ? '—' : `${gainValue >= 0 ? '+' : ''}£${Math.round(gainValue).toLocaleString("en-GB")}`;
       const tr = document.createElement('tr');
       tr.setAttribute('data-player-id', pId);
       tr.style.cursor = 'pointer';
@@ -147,9 +147,13 @@ function listenToGameAsAdmin() {
         <td><strong>${p.name}</strong></td>
         <td>${p.quizFinished ? 'Completed' : (p.quizIndex || 0) + '/8'}</td>
         <td>+£${(p.quizScore || 1000) - 1000}</td>
-        <td><strong>£${Math.round(p.balance || 1000).toLocaleString()}</strong></td>
+        <td><strong>£${Math.round(p.balance || 1000).toLocaleString("en-GB")}</strong></td>
         <td class="${gainClass}">${gainText}</td>
         <td>${isAllocated ? '✅ Submitted' : '⏳ Pending'}</td>
+        <td>
+          <button class="btn btn-gray btn-sm" onclick="event.stopPropagation(); adminEditPlayer('${pId}')">Edit</button>
+          <button class="btn btn-sm" onclick="event.stopPropagation(); adminRemovePlayer('${pId}')">Remove</button>
+        </td>
       `;
       tbody.appendChild(tr);
     });
@@ -213,6 +217,22 @@ function updateHeaderForState(state) {
     if (pill && isLiveGame) pill.classList.remove('hidden');
     if (leaderboardBtn) leaderboardBtn.classList.remove('hidden');
   }
+}
+
+function adminEditPlayer(pId) {
+  const nameRef = gameRef.child('players').child(pId).child('name');
+  nameRef.once('value', snap => {
+    const newName = prompt('Edit player name:', snap.val() || '');
+    if (newName && newName.trim()) nameRef.set(newName.trim());
+  });
+}
+
+function adminRemovePlayer(pId) {
+  gameRef.child('players').child(pId).child('name').once('value', snap => {
+    if (confirm(`Remove ${snap.val() || 'this player'} from the game?`)) {
+      gameRef.child('players').child(pId).remove();
+    }
+  });
 }
 
 function adminChangeState(newState) {
@@ -426,7 +446,7 @@ function renderQuestion() {
 
   const q = QUIZ_QUESTIONS[currentQuestionIndex];
   document.getElementById('quiz-question-num').innerText = `Question ${currentQuestionIndex + 1} of 8`;
-  document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString()}`;
+  document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString("en-GB")}`;
   updateBalancePill(quizScore);
   document.getElementById('quiz-question-text').innerText = q.question;
   document.getElementById('quiz-feedback-box').classList.add('hidden');
@@ -457,7 +477,7 @@ function renderQuestion() {
     const fbBox = document.getElementById('quiz-feedback-box');
     fbBox.classList.remove('hidden');
     document.getElementById('quiz-feedback-text').innerHTML = buildQuizFeedbackHtml(q, answered.isCorrect);
-    document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString()}`;
+    document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString("en-GB")}`;
   }
 }
 
@@ -516,7 +536,7 @@ function confirmAnswer() {
   document.getElementById('quiz-feedback-text').innerHTML = buildQuizFeedbackHtml(q, isCorrect);
 
   // Ensure currency formatting shows commas
-  document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString()}`;
+  document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString("en-GB")}`;
   updateBalancePill(quizScore);
 }
 
@@ -538,7 +558,7 @@ function setupAllocationScreen(year, myData) {
 
   const totalCash = Math.round(myData ? myData.balance : 1000);
   const totalSpans = document.querySelectorAll('.player-total-cash');
-  totalSpans.forEach(s => s.innerText = totalCash.toLocaleString());
+  totalSpans.forEach(s => s.innerText = totalCash.toLocaleString("en-GB"));
 
   const isAlreadySubmitted = myData && myData.allocations && myData.allocations['year' + year];
   const existingAlloc = isAlreadySubmitted ? myData.allocations['year' + year] : null;
@@ -585,11 +605,11 @@ function renderAllocationOptions() {
       const btn = document.createElement('button');
       btn.className = `allocation-pill ${selectedPercent === percent ? 'active' : ''}`;
       btn.type = 'button';
-      btn.innerHTML = `<strong>${percent}%</strong><small>£${amount.toLocaleString()}</small>`;
+      btn.innerHTML = `<strong>${percent}%</strong><small>£${amount.toLocaleString("en-GB")}</small>`;
       btn.onclick = () => setAllocationPercent(`alloc-${asset}`, percent);
       container.appendChild(btn);
     });
-    amountEl.innerText = `£${getAllocationAmountFromPercent(selectedPercent, totalCash).toLocaleString()}`;
+    amountEl.innerText = `£${getAllocationAmountFromPercent(selectedPercent, totalCash).toLocaleString("en-GB")}`;
   });
 }
 
@@ -614,7 +634,7 @@ function updateAllocationTotals() {
 
   const totalEl = document.getElementById('total-allocated-display');
   
-  if (totalEl) totalEl.innerText = total.toLocaleString();
+  if (totalEl) totalEl.innerText = total.toLocaleString("en-GB");
 
   const summary = document.getElementById('alloc-summary-bar');
   const totalValueEl = document.getElementById('total-allocated-value');
@@ -627,7 +647,7 @@ function updateAllocationTotals() {
     const asset = ASSET_IDS[idx];
     const amountEl = document.getElementById(`alloc-amount-${asset}`);
     if (amountEl) {
-      amountEl.innerText = `£${value.toLocaleString()}`;
+      amountEl.innerText = `£${value.toLocaleString("en-GB")}`;
       amountEl.style.color = overAllocated ? 'var(--red-accent)' : 'var(--green-primary)';
     }
     const inputEl = document.getElementById(`alloc-${asset}`);
@@ -653,7 +673,7 @@ function submitAllocation() {
   const equities = allocationAmounts.equities;
 
   if (cash + bonds + commodities + equities !== totalCash) {
-    alert(`Total allocations must equal exactly your available balance (£${totalCash.toLocaleString()}).`);
+    alert(`Total allocations must equal exactly your available balance (£${totalCash.toLocaleString("en-GB")}).`);
     return;
   }
 
@@ -739,10 +759,10 @@ function renderResultsScreen(year, myData) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${a.name}</td>
-        <td>£${a.val.toLocaleString()}</td>
+        <td>£${a.val.toLocaleString("en-GB")}</td>
         <td style="color:${a.ret >= 0 ? 'var(--green-primary)' : 'var(--red-accent)'}">${(a.ret * 100).toFixed(1)}%</td>
-        <td style="color:${gain >= 0 ? 'var(--green-primary)' : 'var(--red-accent)'}">£${Math.round(gain).toLocaleString()}</td>
-        <td>£${Math.round(end).toLocaleString()}</td>
+        <td style="color:${gain >= 0 ? 'var(--green-primary)' : 'var(--red-accent)'}">£${Math.round(gain).toLocaleString("en-GB")}</td>
+        <td>£${Math.round(end).toLocaleString("en-GB")}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -752,18 +772,18 @@ function renderResultsScreen(year, myData) {
     overallGainLoss = gainLoss;
     const gainLossSign = gainLoss >= 0 ? '+' : '';
     if (gainLossEl) {
-      gainLossEl.innerText = `${gainLossSign}£${Math.round(gainLoss).toLocaleString()}`;
+      gainLossEl.innerText = `${gainLossSign}£${Math.round(gainLoss).toLocaleString("en-GB")}`;
       gainLossEl.style.color = gainLoss >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
     }
     if (outcomeHeader) {
       outcomeHeader.innerText = gainLoss >= 0 ? 'Woo! Your money grew this year!' : 'Oh no, not such a good year!';
       outcomeHeader.style.color = gainLoss >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
     }
-    document.getElementById('new-portfolio-total').innerText = `£${Math.round(h.newBalance).toLocaleString()}`;
+    document.getElementById('new-portfolio-total').innerText = `£${Math.round(h.newBalance).toLocaleString("en-GB")}`;
 
     const totalGainLoss = Math.round(h.newBalance - 1000);
     if (totalGainLossEl) {
-      totalGainLossEl.innerText = `${totalGainLoss >= 0 ? '+' : '-'}£${Math.abs(totalGainLoss).toLocaleString()}`;
+      totalGainLossEl.innerText = `${totalGainLoss >= 0 ? '+' : '-'}£${Math.abs(totalGainLoss).toLocaleString("en-GB")}`;
       totalGainLossEl.style.color = totalGainLoss >= 0 ? 'var(--green-primary)' : 'var(--red-accent)';
     }
   }
@@ -882,14 +902,14 @@ function renderAllocationSubmissionState(isSubmitted, allocation, totalCash) {
   const rows = ASSET_IDS.map(asset => {
     const label = asset.charAt(0).toUpperCase() + asset.slice(1);
     const value = alloc[asset] || 0;
-    return `<tr><td>${label}</td><td>£${value.toLocaleString()}</td></tr>`;
+    return `<tr><td>${label}</td><td>£${value.toLocaleString("en-GB")}</td></tr>`;
   }).join('');
 
   summaryBody.innerHTML = `
     <table class="alloc-submitted-summary-grid">
       <tbody>
         ${rows}
-        <tr><td><strong>Total allocated</strong></td><td><strong>£${(alloc.cash + alloc.bonds + alloc.commodities + alloc.equities).toLocaleString()}</strong></td></tr>
+        <tr><td><strong>Total allocated</strong></td><td><strong>£${(alloc.cash + alloc.bonds + alloc.commodities + alloc.equities).toLocaleString("en-GB")}</strong></td></tr>
       </tbody>
     </table>
   `;
@@ -1022,7 +1042,7 @@ function renderFinalLeaderboard(playersObj) {
     html += `<tr>
       <td>#${idx + 1}</td>
       <td><strong>${p.name}</strong></td>
-      <td><strong>£${Math.round(p.balance || 0).toLocaleString()}</strong></td>
+      <td><strong>£${Math.round(p.balance || 0).toLocaleString("en-GB")}</strong></td>
     </tr>`;
   });
   html += `</tbody></table>`;
@@ -1123,21 +1143,21 @@ function openPlayerHistory(playerId) {
     const p = snap.val();
     const body = document.getElementById('player-history-body');
     let html = `<h4>${p.name}</h4>`;
-    html += `<p>Final balance: £${Math.round(p.balance||0).toLocaleString()}</p>`;
+    html += `<p>Final balance: £${Math.round(p.balance||0).toLocaleString("en-GB")}</p>`;
     html += `<h5>Allocations & Year History</h5>`;
     html += `<table class="data-table"><thead><tr><th>Year</th><th>Allocations</th><th>Asset Returns</th><th>Year Gain/Loss</th><th>End Balance</th></tr></thead><tbody>`;
     for (let y=1;y<=6;y++){
       const alloc = p.allocations && p.allocations['year'+y] ? p.allocations['year'+y] : null;
       const hist = p.history && p.history['year'+y] ? p.history['year'+y] : null;
       const allocText = alloc
-        ? `Cash: £${(alloc.cash||0).toLocaleString()} | Bonds: £${(alloc.bonds||0).toLocaleString()} | Commodities: £${(alloc.commodities||0).toLocaleString()} | Equities: £${(alloc.equities||0).toLocaleString()}`
+        ? `Cash: £${(alloc.cash||0).toLocaleString("en-GB")} | Bonds: £${(alloc.bonds||0).toLocaleString("en-GB")} | Commodities: £${(alloc.commodities||0).toLocaleString("en-GB")} | Equities: £${(alloc.equities||0).toLocaleString("en-GB")}`
         : '—';
       const returnsText = hist
         ? `Cash ${((hist.returns.cash||0)*100).toFixed(1)}% | Bonds ${((hist.returns.bonds||0)*100).toFixed(1)}% | Commodities ${((hist.returns.commodities||0)*100).toFixed(1)}% | Equities ${((hist.returns.equities||0)*100).toFixed(1)}%`
         : '—';
       const gainLoss = hist && typeof hist.gainLoss === 'number' ? hist.gainLoss : null;
-      const gainLossText = gainLoss === null ? '—' : `${gainLoss >= 0 ? '+' : ''}£${Math.round(gainLoss).toLocaleString()}`;
-      html += `<tr><td>${y}</td><td>${allocText}</td><td>${returnsText}</td><td>${gainLossText}</td><td>${hist? '£'+Math.round(hist.newBalance).toLocaleString() : '—'}</td></tr>`;
+      const gainLossText = gainLoss === null ? '—' : `${gainLoss >= 0 ? '+' : ''}£${Math.round(gainLoss).toLocaleString("en-GB")}`;
+      html += `<tr><td>${y}</td><td>${allocText}</td><td>${returnsText}</td><td>${gainLossText}</td><td>${hist? '£'+Math.round(hist.newBalance).toLocaleString("en-GB") : '—'}</td></tr>`;
     }
     html += `</tbody></table>`;
     html += `<p><em>Note: individual quiz answers are not recorded in this session.</em></p>`;
@@ -1165,8 +1185,8 @@ function openSimulationHistoryModal() {
       const gainClass = gain >= 0 ? 'year-gain-positive' : 'year-gain-negative';
       html += `<tr>
         <td>${y}</td>
-        <td class="${gainClass}">${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString()}</td>
-        <td>${total === null ? '—' : `£${Math.round(total).toLocaleString()}`}</td>
+        <td class="${gainClass}">${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString("en-GB")}</td>
+        <td>${total === null ? '—' : `£${Math.round(total).toLocaleString("en-GB")}`}</td>
       </tr>`;
     }
     html += '</tbody></table>';
@@ -1191,7 +1211,7 @@ function updateBalancePill(balanceValue) {
   const valueEl = document.getElementById('balance-pill-value');
   if (!pill || !valueEl) return;
   const displayValue = typeof balanceValue === 'number' ? balanceValue : (quizScore || 1000);
-  valueEl.innerText = `£${Math.round(displayValue).toLocaleString()}`;
+  valueEl.innerText = `£${Math.round(displayValue).toLocaleString("en-GB")}`;
   const isLobby = currentGameState === 'LOBBY' || currentGameState === 'HOME';
   pill.classList.toggle('hidden', !currentGameCode || !playerId || isLobby || isResultsCountdownActive);
 }
