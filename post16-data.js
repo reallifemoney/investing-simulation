@@ -34,7 +34,7 @@ const QUIZ_SECTIONS_POST16 = [
         options: [
           "It may grow slower than inflation and make my money lose purchasing power over time",
           "I will lose most of the interest to tax",
-          "There is no downside",
+          "There is no downside to keeping cash in a savings account",
           "There is risk that the value of my cash will go down"
         ],
         answer: 0,
