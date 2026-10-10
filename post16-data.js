@@ -32,7 +32,7 @@ const QUIZ_SECTIONS_POST16 = [
       {
         question: "What is the main downside of gaining interest from cash?",
         options: [
-          "It will often grow slower than inflation",
+          "It may grow slower than inflation and make my money lose purchasing power over time",
           "I will lose most of the interest to tax",
           "There is no downside",
           "There is risk that the value of my cash will go down"
