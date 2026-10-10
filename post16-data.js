@@ -1,12 +1,11 @@
-// Post-16 version: questions are grouped into 3 taught sections of 4 questions each.
-// Section 0: Investing basics / cash as an investment
-// Section 1: Bonds
-// Section 2: Equities & commodities
+// Post-16 version: questions are grouped into 2 taught sections of 5 questions each.
+// Section 0: Investing basics, cash and bonds
+// Section 1: Equities & commodities
 // Feel free to edit/replace any question, option, answer index (0-based) or explanation below.
 
 const QUIZ_SECTIONS_POST16 = [
   {
-    title: "Investing Basics & Cash",
+    title: "Investing, Cash & Bonds",
     questions: [
       {
         question: "Which best describes 'investing'?",
@@ -31,32 +30,16 @@ const QUIZ_SECTIONS_POST16 = [
         explanation: "All investments carry some level of risk, and this risk is always a factor to consider when investing."
       },
       {
-        question: "What is the main benefit of having cash savings?",
+        question: "What is the main downside of gaining interest from cash?",
         options: [
-          "It will grow at the same rate as inflation",
-          "Any growth is tax-free",
-          "The Government rewards you for having cash savings",
-          "The value cannot go down so it reduces your overall risk"
+          "It will often grow slower than inflation",
+          "I will lose most of the interest to tax",
+          "There is no downside",
+          "There is risk that the value of my cash will go down"
         ],
-        answer: 3,
-        explanation: "Investing in cash savings reduces overall risk because the value cannot go down, providing a safe place to store money."
+        answer: 0,
+        explanation: "The main downside of cash savings is that the interest earned often grows slower than inflation, which can erode purchasing power over time."
       },
-      {
-        question: "What is a key risk of holding too much money in cash long-term?",
-        options: [
-          "The bank keeps the cash locked away forever",
-          "Inflation can reduce it's purchasing power over time",
-          "Cash cannot be withdrawn once deposited",
-          "Cash automatically converts into stocks"
-        ],
-        answer: 1,
-        explanation: "If inflation rises faster than the interest earned on cash, the real value (purchasing power) of that cash falls over time."
-      }
-    ]
-  },
-  {
-    title: "Bonds",
-    questions: [
       {
         question: "What is a bond?",
         options: [
@@ -71,35 +54,13 @@ const QUIZ_SECTIONS_POST16 = [
       {
         question: "Why might an investor choose bonds over equities?",
         options: [
-          "Bonds usually offer more stable, predictable income and lower risk",
+          "Bonds cannot lose value",
           "Bonds always grow faster than shares",
-          "Bonds cannot lose value under any circumstances",
+          "Bonds usually offer more stable, predictable income and lower risk",
           "Bonds give you voting rights in a company"
         ],
-        answer: 0,
+        answer: 2,
         explanation: "Bonds tend to be lower risk than shares and can provide steady interest payments, which appeals to more cautious investors."
-      },
-      {
-        question: "What generally happens to the value of bonds when interest rates rise?",
-        options: [
-          "Bond prices rise",
-          "Bond prices fall",
-          "Bond prices are unaffected by interest rates",
-          "Bonds automatically convert to cash"
-        ],
-        answer: 1,
-        explanation: "When interest rates rise, new bonds pay more interest - thus making older, lower-interest bonds less attractive, so their prices tend to fall."
-      },
-      {
-        question: "Which type of bond is generally considered lowest risk?",
-        options: [
-          "A bond issued by a small, unstable company",
-          "A bond issued by a stable national government",
-          "A bond with no fixed repayment date",
-          "A bond from a company already in financial difficulty"
-        ],
-        answer: 1,
-        explanation: "Government bonds from stable countries are usually seen as lower risk because governments are less likely to default than most companies."
       }
     ]
   },
@@ -121,9 +82,9 @@ const QUIZ_SECTIONS_POST16 = [
         question: "Which of these will best spread our risk?",
         options: [
           "Shares in 10 companies",
-          "A fund or ETF",
+          "Investing in a fund (also called Index Fund or ETF)",
           "Crude oil or gold",
-          "Shares in Apple"
+          "Shares in a big company like Apple"
         ],
         answer: 1,
         explanation: "A fund or ETF typically holds a diversified mix of assets, which helps spread and manage risk more effectively than holding a few individual shares."
@@ -131,13 +92,24 @@ const QUIZ_SECTIONS_POST16 = [
       {
         question: "Why can equities be considered higher risk than bonds?",
         options: [
-          "Share prices can be more volatile and are not guaranteed to pay anything back",
-          "Shares always guarantee a fixed annual return",
-          "Shares cannot be bought or sold",
-          "Equities are protected by the government"
+          "You are very likely to lose money with equities",
+          "Spreading your risk is difficult with equities",
+          "There is no guarantee of fixed annual returns",
+          "Bonds are protected by the government"
         ],
-        answer: 0,
-        explanation: "Share prices can swing significantly with company performance and market sentiment, and there's no guaranteed return, unlike a bond's fixed interest."
+        answer: 2,
+        explanation: "Shares have no guaranteed return, unlike a bond's fixed interest."
+      },
+      {
+        question: "What kind of percentage change could I expect from equities?",
+        options: [
+          "Generally moderate swings - perhaps 10% up or down",
+          "They can experience significant swings of as much as -40% to +40%",
+          "They may move around 5% up or down",
+          "Very stable prices"
+        ],
+        answer: 1,
+        explanation: "Equities can experience significant fluctuations in value, both upward and downward, reflecting the performance of the underlying companies and market conditions."
       },
       {
         question: "What is a common reason investors add commodities to a portfolio?",
@@ -155,11 +127,8 @@ const QUIZ_SECTIONS_POST16 = [
 ];
 
 const YEAR_RETURNS = [
-  { year: 1, cash: 0.01, bonds: 0.10, commodities: 0.09, equities: 0.19 },
-  { year: 2, cash: 0.03, bonds: -0.05, commodities: 0.21, equities: 0.13 },
-  { year: 3, cash: 0.05, bonds: 0.07, commodities: 0.02, equities: 0.26 },
-  { year: 4, cash: 0.04, bonds: 0.09, commodities: 0.16, equities: 0.10 },
-  { year: 5, cash: 0.01, bonds: 0.05, commodities: -0.36, equities: -0.41 },
-  { year: 6, cash: 0.01, bonds: 0.07, commodities: 0.19, equities: 0.27 }
-  
+  { year: 1, cash: 0.05, bonds: 0.07, commodities: 0.02, equities: 0.26 },
+  { year: 2, cash: 0.04, bonds: 0.09, commodities: 0.16, equities: 0.10 },
+  { year: 3, cash: 0.01, bonds: 0.05, commodities: -0.36, equities: -0.41 },
+  { year: 4, cash: 0.01, bonds: 0.07, commodities: 0.19, equities: 0.27 }
 ];

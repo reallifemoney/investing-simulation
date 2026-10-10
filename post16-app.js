@@ -25,7 +25,7 @@ let resultsCountdownYear = null;
 let lastCelebratedResultsYear = null;
 
 const SECTION_COUNT = QUIZ_SECTIONS_POST16.length;
-const QUESTIONS_PER_SECTION = 4;
+const QUESTIONS_PER_SECTION = 5;
 const SPIN_DURATION_MS = 4200;
 const STARTING_BALANCE = 1000;
 const ASSET_IDS = ['cash', 'bonds', 'commodities', 'equities'];
@@ -937,7 +937,7 @@ function renderFinalLeaderboard(playersObj) {
   if (subheadingEl) {
     subheadingEl.innerText = myIndex === 0
       ? 'Outstanding result. You won this simulation.'
-      : 'Here are the final standings after 6 market investment years:';
+      : `Here are the final standings after ${YEAR_RETURNS.length} market investment years:`;
   }
 
   let html = `<table class="data-table"><thead><tr><th>Rank</th><th>Player</th><th>Balance</th></tr></thead><tbody>`;
@@ -972,12 +972,12 @@ function renderAssetPerformanceChart() {
   const values = ASSET_IDS.flatMap(asset => series[asset].map(point => point.value));
   const minimum = Math.min(...values, 100);
   const maximum = Math.max(...values, 100);
-  const x = year => padding.left + (year / 6) * plotWidth;
+  const x = year => padding.left + (year / YEAR_RETURNS.length) * plotWidth;
   const y = value => padding.top + plotHeight - ((value - minimum) / ((maximum - minimum) || 1)) * plotHeight;
   const lines = ASSET_IDS.map(asset => `<polyline points="${series[asset].map(point => `${x(point.year)},${y(point.value)}`).join(' ')}" fill="none" stroke="${ASSET_CHART_COLORS[asset]}" stroke-width="2.5" />`).join('');
-  const labels = [0, 1, 2, 3, 4, 5, 6].map(year => `<text x="${x(year)}" y="${height - 6}" font-size="11" fill="#718096" text-anchor="middle">Yr ${year}</text>`).join('');
+  const labels = [0, ...YEAR_RETURNS.map(r => r.year)].map(year => `<text x="${x(year)}" y="${height - 6}" font-size="11" fill="#718096" text-anchor="middle">Yr ${year}</text>`).join('');
   const legend = ASSET_IDS.map(asset => `<span><i style="background:${ASSET_CHART_COLORS[asset]}"></i>${ASSET_CHART_LABELS[asset]}</span>`).join('');
-  container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" width="100%" height="auto" role="img" aria-label="Asset class performance over 6 years">${lines}${labels}</svg><div class="asset-chart-legend">${legend}</div>`;
+  container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" width="100%" height="auto" role="img" aria-label="Asset class performance over ${YEAR_RETURNS.length} years">${lines}${labels}</svg><div class="asset-chart-legend">${legend}</div>`;
 }
 
 const ASSET_SUMMARIES = {
@@ -1001,7 +1001,7 @@ function openSimulationHistoryModal() {
   dbRoot().child(currentGameCode).child('players').child(playerId).once('value', snapshot => {
     const player = snapshot.val() || {};
     let rows = '';
-    for (let year = 1; year <= 6; year++) {
+    for (let year = 1; year <= YEAR_RETURNS.length; year++) {
       const history = player.history && player.history['year' + year];
       const gain = history && typeof history.gainLoss === 'number' ? history.gainLoss : 0;
       rows += `<tr><td>${year}</td><td class="${gain >= 0 ? 'year-gain-positive' : 'year-gain-negative'}">${gain >= 0 ? '+' : ''}£${Math.round(gain).toLocaleString("en-GB")}</td><td>${history ? `£${Math.round(history.newBalance).toLocaleString("en-GB")}` : '—'}</td></tr>`;
