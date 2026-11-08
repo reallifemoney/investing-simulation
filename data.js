@@ -39,9 +39,9 @@ const QUIZ_SECTIONS = [
     questions: [
       {
         question: "What does it mean to invest in equities?",
-        options: ["Buying shares of a company", "Share prices can never reflect expectations", "Profits determine the share price exactly", "All shareholders must sell when profits rise"],
+        options: ["Buying parts of a company", "Loan money to a company", "Borrowing money from a company", "Taking profits of a company"],
         answer: 0,
-        explanation: "Share prices reflect expectations as well as results; a positive result can disappoint investors if they expected more."
+        explanation: "Stock ownership means holding a part of the company, entitling the investor to a share of profits and voting rights."
       },
       {
         question: "What risk is most effectively reduced by holding shares in many companies across different industries?",
@@ -50,22 +50,22 @@ const QUIZ_SECTIONS = [
         explanation: "Diversification can reduce company-specific risk, although a broad market downturn can still affect the portfolio."
       },
       {
-        question: "A share pays a £2 annual dividend and costs £40. What is its dividend yield?",
-        options: ["2%", "5%", "20%", "40%"],
-        answer: 1,
-        explanation: "Dividend yield is the annual dividend divided by the share price: £2 / £40 = 5%. Dividends are not guaranteed."
+        question: "What level of risk does investing in equities carry?",
+        options: ["Low", "Moderate", "High", "No risk"],
+        answer: 2,
+        explanation: "Investing in equities carries a high level of risk due to price volatility and market fluctuations."
       },
       {
-        question: "A share falls by 20%. Approximately how much must it rise from its new price to return to its original price?",
-        options: ["20%", "25%", "30%", "40%"],
-        answer: 1,
-        explanation: "A £100 share falls to £80; gaining £20 from £80 requires a 25% rise."
+        question: "What factors could affect a share price?",
+        options: ["Company performance", "Market sentiment", "Economic indicators", "All of the above"],
+        answer: 3,
+        explanation: "Share prices can be influenced by company performance, market sentiment, and broader economic indicators."
       },
       {
-        question: "What is a key difference between holding physical gold and holding dividend-paying shares?",
-        options: ["Gold guarantees a dividend", "Gold produces no income by itself", "Gold cannot fall in price", "Gold represents ownership of a company"],
-        answer: 1,
-        explanation: "Physical gold does not pay income itself; its return depends on price changes and any costs of holding it."
+        question: "What is a key benefit of buying commodities like gold?",
+        options: ["A good bet against market downturns", "Guaranteed income", "No price volatility", "Ownership in a company"],
+        answer: 0,
+        explanation: "Commodities like gold are often useful as they perform well when equities are doing badly."
       }
     ]
   }
