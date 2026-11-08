@@ -5,6 +5,7 @@ let playerName = "";
 let isAdmin = false;
 
 let currentQuestionIndex = 0;
+let currentSection = 0;
 let pendingOptionIndex = null;
 let isAdvancingQuestion = false;
 let quizScore = 1000;
@@ -56,6 +57,7 @@ function createGame() {
   gameRef.set({
     created: Date.now(),
     state: 'LOBBY', // LOBBY, QUIZ, ALLOCATING, RESULTS, FINAL
+    currentSection: 0,
     currentYear: 1,
     players: {}
   });
@@ -145,7 +147,7 @@ function listenToGameAsAdmin() {
       tr.onclick = () => openPlayerHistory(pId);
       tr.innerHTML = `
         <td><strong>${p.name}</strong></td>
-        <td>${p.quizFinished ? 'Completed' : (p.quizIndex || 0) + '/8'}</td>
+        <td>${p.quizFinished ? 'Completed' : (p.quizIndex || 0) + '/' + QUIZ_SECTIONS[data.currentSection || 0].questions.length}</td>
         <td>+£${(p.quizScore || 1000) - 1000}</td>
         <td><strong>£${Math.round(p.balance || 1000).toLocaleString("en-GB")}</strong></td>
         <td class="${gainClass}">${gainText}</td>
@@ -164,11 +166,18 @@ function listenToGameAsAdmin() {
 
     if (data.state === 'LOBBY') {
       statusText.innerText = `Lobby open. ${playerList.length} player(s) joined.`;
-      actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button><button class="btn btn-green" onclick="adminChangeState('QUIZ')">Start Quiz Phase</button>`;
+      actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button><button class="btn btn-green" onclick="adminStartSection(0)">Start Session 1 Quiz</button>`;
     } else if (data.state === 'QUIZ') {
+      const section = data.currentSection || 0;
       const allDone = playerList.length > 0 && playerList.every(p => p.quizFinished);
-      statusText.innerText = allDone ? "All players finished the quiz!" : "Players are completing questions...";
-      actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button><button class="btn btn-purple" onclick="adminChangeState('ALLOCATING')">Start Year 1 Investment</button>`;
+      statusText.innerText = `Session ${section + 1}: ${QUIZ_SECTIONS[section].title} - ${allDone ? 'All players finished!' : 'Players are completing questions...'}`;
+      const nextAction = section < QUIZ_SECTIONS.length - 1
+        ? `<button class="btn btn-purple" onclick="adminStartSection(${section + 1})">Start Session ${section + 2} Quiz</button>`
+        : `<button class="btn btn-purple" onclick="adminChangeState('SIMULATION_INTRO')">Continue to Investment Simulation</button>`;
+      actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button>${nextAction}`;
+    } else if (data.state === 'SIMULATION_INTRO') {
+      statusText.innerText = 'The quiz sessions are complete. Explain the investment simulation, then begin Year 1.';
+      actionsDiv.innerHTML = `<button class="btn btn-green" onclick="adminChangeState('ALLOCATING')">Start Year 1 Investment</button>`;
     } else if (data.state === 'ALLOCATING') {
       const year = data.currentYear;
       const allSubmitted = playerList.length > 0 && playerList.every(p => p.allocations && p.allocations['year' + year]);
@@ -177,7 +186,7 @@ function listenToGameAsAdmin() {
     } else if (data.state === 'RESULTS') {
       const year = data.currentYear;
       statusText.innerText = `Year ${year} complete. View results or advance.`;
-      if (year < 6) {
+      if (year < YEAR_RETURNS.length) {
         actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button><button class="btn btn-purple" onclick="adminNextYear(${year + 1})">Advance to Year ${year + 1}</button>`;
       } else {
         actionsDiv.innerHTML = `<button class="btn btn-gray" onclick="toggleQuizPreviewModal(true)">View Quiz Questions</button><button class="btn btn-green" onclick="adminChangeState('FINAL')">Show Final Leaderboard</button>`;
@@ -237,6 +246,17 @@ function adminRemovePlayer(pId) {
 
 function adminChangeState(newState) {
   gameRef.update({ state: newState });
+}
+
+function adminStartSection(sectionIndex) {
+  gameRef.child('players').once('value', snapshot => {
+    const updates = { state: 'QUIZ', currentSection: sectionIndex };
+    Object.keys(snapshot.val() || {}).forEach(pId => {
+      updates[`players/${pId}/quizIndex`] = 0;
+      updates[`players/${pId}/quizFinished`] = false;
+    });
+    gameRef.update(updates);
+  });
 }
 
 function adminNextYear(nextYr) {
@@ -351,7 +371,8 @@ function listenToGameAsPlayer() {
     if (!myData) return;
 
     quizScore = myData.quizScore || myData.balance || quizScore;
-    currentQuestionIndex = myData.quizIndex || currentQuestionIndex;
+    currentSection = data.currentSection || 0;
+    currentQuestionIndex = myData.quizIndex || 0;
 
     // update header visibility based on state
     updateHeaderForState(data.state);
@@ -366,6 +387,14 @@ function listenToGameAsPlayer() {
       showScreen('screen-quiz');
       renderQuestion();
       updateBalancePill(myData ? myData.balance : quizScore);
+    } else if (data.state === 'SIMULATION_INTRO') {
+      const lobbyTitle = document.getElementById('lobby-title');
+      if (lobbyTitle) lobbyTitle.innerText = 'Quiz sessions complete!';
+      const waitEl = document.getElementById('lobby-waiting-text');
+      if (waitEl) waitEl.innerText = 'Waiting for the host to begin the investment simulation.';
+      const lobbyScreen = document.getElementById('screen-lobby');
+      if (lobbyScreen) lobbyScreen.classList.add('lobby-quiz-complete');
+      showScreen('screen-lobby');
     } else if (data.state === 'ALLOCATING') {
       resultsCountdownYear = null;
       isResultsCountdownActive = false;
@@ -429,23 +458,26 @@ function performResultsCountdown(year, myData) {
 // --- QUIZ LOGIC ---
 function renderQuestion() {
   isAdvancingQuestion = false;
-  if (currentQuestionIndex >= QUIZ_QUESTIONS.length) {
-    db.ref(`games/${currentGameCode}/players/${playerId}`).update({ quizFinished: true });
+  const questions = QUIZ_SECTIONS[currentSection].questions;
+  if (currentQuestionIndex >= questions.length) {
     // show waiting page with specific message
     const codeEl = document.getElementById('lobby-code-display');
     if (codeEl) codeEl.innerText = currentGameCode || '---';
     const lobbyTitle = document.getElementById('lobby-title');
-    if (lobbyTitle) lobbyTitle.innerText = 'All done!';
+    if (lobbyTitle) lobbyTitle.innerText = 'Session complete!';
     const lobbyScreen = document.getElementById('screen-lobby');
     if (lobbyScreen) lobbyScreen.classList.add('lobby-quiz-complete');
     const waitEl = document.getElementById('lobby-waiting-text');
-    if (waitEl) waitEl.innerText = 'Coming up: Investing Simulation - waiting for host to begin simulation';
+    if (waitEl) waitEl.innerText = currentSection < QUIZ_SECTIONS.length - 1
+      ? 'Waiting for the host to start the next quiz session.'
+      : 'Waiting for the host to begin the investment simulation.';
     showScreen('screen-lobby');
     return;
   }
 
-  const q = QUIZ_QUESTIONS[currentQuestionIndex];
-  document.getElementById('quiz-question-num').innerText = `Question ${currentQuestionIndex + 1} of 8`;
+  const q = questions[currentQuestionIndex];
+  document.getElementById('quiz-section-badge').innerText = `Session ${currentSection + 1}: ${QUIZ_SECTIONS[currentSection].title}`;
+  document.getElementById('quiz-question-num').innerText = `Question ${currentQuestionIndex + 1} of ${questions.length}`;
   document.getElementById('quiz-cash-display').innerText = `£${quizScore.toLocaleString("en-GB")}`;
   updateBalancePill(quizScore);
   document.getElementById('quiz-question-text').innerText = q.question;
@@ -453,7 +485,7 @@ function renderQuestion() {
 
   const container = document.getElementById('quiz-options-container');
   container.innerHTML = '';
-  const answered = answeredQuestions[currentQuestionIndex];
+  const answered = answeredQuestions[`${currentSection}-${currentQuestionIndex}`];
   q.options.forEach((opt, idx) => {
     const card = document.createElement('div');
     card.className = 'option-card';
@@ -493,7 +525,7 @@ function buildQuizFeedbackHtml(question, isCorrect) {
 
 function openConfirmModal(optIdx) {
   pendingOptionIndex = optIdx;
-  document.getElementById('confirm-option-text').innerText = QUIZ_QUESTIONS[currentQuestionIndex].options[optIdx];
+  document.getElementById('confirm-option-text').innerText = QUIZ_SECTIONS[currentSection].questions[currentQuestionIndex].options[optIdx];
   document.getElementById('confirm-modal').classList.remove('hidden');
 }
 
@@ -503,7 +535,7 @@ function closeConfirmModal() {
 
 function confirmAnswer() {
   closeConfirmModal();
-  const q = QUIZ_QUESTIONS[currentQuestionIndex];
+  const q = QUIZ_SECTIONS[currentSection].questions[currentQuestionIndex];
   const isCorrect = pendingOptionIndex === q.answer;
   const cards = document.querySelectorAll('.option-card');
 
@@ -524,7 +556,7 @@ function confirmAnswer() {
   }
 
   // mark question answered locally to prevent multiple attempts
-  answeredQuestions[currentQuestionIndex] = { chosen: pendingOptionIndex, isCorrect };
+  answeredQuestions[`${currentSection}-${currentQuestionIndex}`] = { chosen: pendingOptionIndex, isCorrect };
 
   db.ref(`games/${currentGameCode}/players/${playerId}`).update({
     quizScore: quizScore,
@@ -545,7 +577,8 @@ function nextQuestion() {
   isAdvancingQuestion = true;
   currentQuestionIndex++;
   db.ref(`games/${currentGameCode}/players/${playerId}`).update({
-    quizIndex: currentQuestionIndex
+    quizIndex: currentQuestionIndex,
+    quizFinished: currentQuestionIndex >= QUIZ_SECTIONS[currentSection].questions.length
   });
   renderQuestion();
 }
@@ -1033,7 +1066,7 @@ function renderFinalLeaderboard(playersObj) {
   if (subheadingEl) {
     subheadingEl.innerText = myIndex === 0
       ? 'Outstanding result. You won this simulation.'
-      : 'Here are the final standings after 6 market investment years:';
+      : `Here are the final standings after ${YEAR_RETURNS.length} market investment years:`;
   }
 
   let html = `<table class="data-table"><thead><tr><th>Rank</th><th>Player</th><th>Balance</th></tr></thead><tbody>`;
@@ -1053,7 +1086,7 @@ function renderAssetPerformanceChart() {
   const container = document.getElementById('final-asset-chart-container');
   if (!container) return;
 
-  // Build cumulative growth of £100 per asset class across years 0-6
+  // Build cumulative growth of £100 per asset class across the simulation.
   const series = {};
   ASSET_IDS.forEach(assetId => {
     let value = 100;
@@ -1076,7 +1109,7 @@ function renderAssetPerformanceChart() {
   const maxValue = Math.max(...allValues, 100);
   const valueRange = (maxValue - minValue) || 1;
 
-  const xForYear = year => padding.left + (year / 6) * plotWidth;
+  const xForYear = year => padding.left + (year / YEAR_RETURNS.length) * plotWidth;
   const yForValue = value => padding.top + plotHeight - ((value - minValue) / valueRange) * plotHeight;
 
   const lines = ASSET_IDS.map(assetId => {
@@ -1084,7 +1117,7 @@ function renderAssetPerformanceChart() {
     return `<polyline points="${pointsAttr}" fill="none" stroke="${ASSET_CHART_COLORS[assetId]}" stroke-width="2.5" />`;
   }).join('');
 
-  const yearLabels = [0, 1, 2, 3, 4, 5, 6].map(year =>
+  const yearLabels = [0, ...YEAR_RETURNS.map(returns => returns.year)].map(year =>
     `<text x="${xForYear(year)}" y="${height - 6}" font-size="11" fill="#718096" text-anchor="middle">Yr ${year}</text>`
   ).join('');
 
@@ -1093,7 +1126,7 @@ function renderAssetPerformanceChart() {
   ).join('');
 
   container.innerHTML = `
-    <svg viewBox="0 0 ${width} ${height}" width="100%" height="auto" role="img" aria-label="Asset class performance over 6 years">
+    <svg viewBox="0 0 ${width} ${height}" width="100%" height="auto" role="img" aria-label="Asset class performance over ${YEAR_RETURNS.length} years">
       ${lines}
       ${yearLabels}
     </svg>
@@ -1146,7 +1179,7 @@ function openPlayerHistory(playerId) {
     html += `<p>Final balance: £${Math.round(p.balance||0).toLocaleString("en-GB")}</p>`;
     html += `<h5>Allocations & Year History</h5>`;
     html += `<table class="data-table"><thead><tr><th>Year</th><th>Allocations</th><th>Asset Returns</th><th>Year Gain/Loss</th><th>End Balance</th></tr></thead><tbody>`;
-    for (let y=1;y<=6;y++){
+    for (let y=1;y<=YEAR_RETURNS.length;y++){
       const alloc = p.allocations && p.allocations['year'+y] ? p.allocations['year'+y] : null;
       const hist = p.history && p.history['year'+y] ? p.history['year'+y] : null;
       const allocText = alloc
@@ -1178,7 +1211,7 @@ function openSimulationHistoryModal() {
     if (!body) return;
 
     let html = '<table class="data-table"><thead><tr><th>Year</th><th>Gain / Loss</th><th>Total after year</th></tr></thead><tbody>';
-    for (let y = 1; y <= 6; y++) {
+    for (let y = 1; y <= YEAR_RETURNS.length; y++) {
       const hist = p.history && p.history['year' + y] ? p.history['year' + y] : null;
       const gain = hist && typeof hist.gainLoss === 'number' ? hist.gainLoss : 0;
       const total = hist && typeof hist.newBalance === 'number' ? hist.newBalance : null;
@@ -1225,14 +1258,14 @@ function toggleQuizPreviewModal(show) {
   }
   const body = document.getElementById('quiz-preview-body');
   if (!body) return;
-  body.innerHTML = QUIZ_QUESTIONS.map((q, idx) => `
+  body.innerHTML = QUIZ_SECTIONS.map((section, sectionIndex) => `<h3>Session ${sectionIndex + 1}: ${section.title}</h3>${section.questions.map((q, idx) => `
     <div class="quiz-preview-item">
       <h4>${idx + 1}. ${q.question}</h4>
       <ul>
         ${q.options.map((opt, optionIdx) => `<li class="${optionIdx === q.answer ? 'quiz-answer-correct' : ''}">${opt}${optionIdx === q.answer ? ' ✅' : ''}</li>`).join('')}
       </ul>
     </div>
-  `).join('');
+  `).join('')}`).join('');
   modal.classList.remove('hidden');
 }
 
