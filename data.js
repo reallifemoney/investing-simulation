@@ -9,22 +9,22 @@ const QUIZ_SECTIONS = [
         explanation: "The balance grows, but prices rise faster, so its purchasing power falls by roughly 2%."
       },
       {
-        question: "Market interest rates rise after a bond is issued. What generally happens to its price?",
-        options: ["It rises because the coupon increases", "It stays fixed until maturity", "It falls because newer bonds offer higher yields", "It rises because the issuer owes more"],
+        question: "If interest rates rise, what generally happens to the fund value of a bonds fund?",
+        options: ["It rises because the interest will increase", "It stays the same", "It falls because newer bonds offer higher interest", "It rises because the fund will perform better"],
         answer: 2,
         explanation: "The bond's interest rate is less attractive compared with newer bonds, so its market price generally falls."
       },
       {
         question: "Two similar government bonds differ only in their duration. Which is generally more sensitive to an interest-rate rise?",
-        options: ["The bond maturing in one year", "The bond maturing in twenty years", "Both are equally sensitive", "Neither can change in price"],
+        options: ["The bond ending in one year", "The bond ending in twenty years", "Both are equally sensitive", "Neither can change in price"],
         answer: 1,
         explanation: "Longer-duration bonds are generally more sensitive to changes in interest rates."
       },
       {
-        question: "Why might a company's bond offer a higher yield than a government bond of similar maturity?",
-        options: ["Company bonds always rise in price", "Investors may demand compensation for greater default risk", "Its coupon must increase with inflation", "The company bond grants voting rights"],
+        question: "Why might a corporate bond offer a higher interest than a government bond of similar length?",
+        options: ["Company bonds always rise in price", "Due to the higher risk of the company going bust", "Its interest must increase with inflation", "The company bond gives you voting rights"],
         answer: 1,
-        explanation: "A higher yield can compensate investors for a greater risk that the issuer will not make promised payments."
+        explanation: "A higher interest can compensate investors for a greater risk that the company will not make promised payments."
       },
       {
         question: "Why do investors invest in bonds as part of their portfolio?",
